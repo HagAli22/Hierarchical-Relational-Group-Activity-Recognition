@@ -8,7 +8,8 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import albumentations as albu
+# import albumentations as albu
+import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 from configs.config_loader import load_config
@@ -34,35 +35,59 @@ def create_model():
 
 def get_transforms():
     """Get train and validation transforms."""
-    train_transform = albu.Compose([
-        albu.Resize(224, 224),
-        albu.OneOf([
-            albu.HorizontalFlip(p=1.0),
-            albu.Rotate(limit=20, p=1.0),
-            albu.ShiftScaleRotate(shift_limit=0.15, scale_limit=0.25, rotate_limit=20, p=1.0),
-        ], p=0.6),
-        albu.OneOf([
-            albu.ColorJitter(brightness=0.35, contrast=0.35, saturation=0.35, hue=0.15, p=1.0),
-            albu.RandomBrightnessContrast(brightness_limit=0.35, contrast_limit=0.35, p=1.0),
-            albu.HueSaturationValue(hue_shift_limit=25, sat_shift_limit=35, val_shift_limit=25, p=1.0),
-        ], p=0.7),
-        albu.OneOf([
-            albu.GaussianBlur(blur_limit=(3, 9), p=1.0),
-            albu.MotionBlur(blur_limit=9, p=1.0),
-            albu.GaussNoise(var_limit=(10, 60), p=1.0),
-        ], p=0.6),
-        albu.CoarseDropout(
-            max_holes=12, max_height=20, max_width=20,
-            min_holes=3, min_height=10, min_width=10, 
-            p=0.4
-        ),
-        albu.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    # train_transform = albu.Compose([
+    #     albu.Resize(224, 224),
+    #     albu.OneOf([
+    #         albu.HorizontalFlip(p=1.0),
+    #         albu.Rotate(limit=20, p=1.0),
+    #         albu.ShiftScaleRotate(shift_limit=0.15, scale_limit=0.25, rotate_limit=20, p=1.0),
+    #     ], p=0.6),
+    #     albu.OneOf([
+    #         albu.ColorJitter(brightness=0.35, contrast=0.35, saturation=0.35, hue=0.15, p=1.0),
+    #         albu.RandomBrightnessContrast(brightness_limit=0.35, contrast_limit=0.35, p=1.0),
+    #         albu.HueSaturationValue(hue_shift_limit=25, sat_shift_limit=35, val_shift_limit=25, p=1.0),
+    #     ], p=0.7),
+    #     albu.OneOf([
+    #         albu.GaussianBlur(blur_limit=(3, 9), p=1.0),
+    #         albu.MotionBlur(blur_limit=9, p=1.0),
+    #         albu.GaussNoise(var_limit=(10, 60), p=1.0),
+    #     ], p=0.6),
+    #     albu.CoarseDropout(
+    #         max_holes=12, max_height=20, max_width=20,
+    #         min_holes=3, min_height=10, min_width=10, 
+    #         p=0.4
+    #     ),
+    #     albu.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    #     ToTensorV2()
+    # ])
+    
+    # val_transform = albu.Compose([
+    #     albu.Resize(224, 224),
+    #     albu.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    #     ToTensorV2()
+    # ])
+    train_transform = A.Compose([
+        A.Resize(224, 224),
+        A.OneOf([
+            A.GaussianBlur(blur_limit=(3, 7)),
+            A.ColorJitter(brightness=0.2),
+            A.RandomBrightnessContrast(),
+            A.GaussNoise(),
+            A.MotionBlur(blur_limit=5), 
+            A.MedianBlur(blur_limit=5)  
+        ], p=0.95),
+        A.OneOf([
+            A.HorizontalFlip(),
+            A.VerticalFlip(),
+            A.RandomRotate90()
+        ], p=0.01),
+        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2()
     ])
     
-    val_transform = albu.Compose([
-        albu.Resize(224, 224),
-        albu.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    val_transform = A.Compose([
+        A.Resize(224, 224),
+        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2()
     ])
     
