@@ -14,14 +14,14 @@ from albumentations.pytorch import ToTensorV2
 
 from configs.config_loader import load_config
 from data.data_loader import GroupActivityDataset
-from models import B1NoRelations, collate_group_fn, person_classifer
+from models import B1_NoRelations, collate_group_fn, Person_Classifer
 from train_utils.ddp_trainer import DDPTrainer, TrainingConfig
 
 
 CONFIG_PATH = "configs/non_temporal_model/B1NoRelations_config.yaml"
 
 # Kaggle paths
-IS_KAGGLE = True
+IS_KAGGLE = '/kaggle' in os.getcwd() or os.path.exists('/kaggle')
 KAGGLE_OUTPUT = "/kaggle/working" if IS_KAGGLE else "."
 
 
@@ -69,70 +69,65 @@ def main():
     # Get transforms
     train_transform, val_transform = get_transforms()
     
-    # Create datasets
+    # Create datasets - use dot notation
     train_dataset = GroupActivityDataset(
         videos_path="/kaggle/input/volleyball/volleyball_/videos",
         annot_path="data/annot_all.pkl",
-        split=config.data['train_split'],
-        sec=False,  # Non-temporal: single frame
+        split=config.data.train_split,
+        sec=False,
         transform=train_transform
     )
     
     val_dataset = GroupActivityDataset(
         videos_path="/kaggle/input/volleyball/volleyball_/videos",
         annot_path="data/annot_all.pkl",
-        split=config.data['val_split'],
+        split=config.data.val_split,
         sec=False,
         transform=val_transform
     )
     
-    # Load pretrained person classifier path from config
-    person_classifier_path = config.training['group_activity']['person_classifier_path']
+    # Load pretrained person classifier path - use dot notation
+    person_classifier_path = config.training.group_activity.person_classifier_path
     
-    # Create training config
+    # Create training config - use dot notation
     training_config = TrainingConfig(
-        model_name=config.training['group_activity'].get('model_name', 'B1NoRelations.pth'),
-        num_classes=config.model['group_activity']['num_classes'],
-        num_epochs=config.training['group_activity']['num_epochs'],
-        batch_size=config.model['group_activity']['batch_size'],
-        learning_rate=config.training['person_activity']['learning_rate'],
-        weight_decay=config.training['person_activity']['weight_decay'],
-        label_smoothing=config.training['group_activity'].get('label_smoothing', 0.0),
-        optimizer=config.training['person_activity']['optimizer'],
-        use_scheduler=config.training.get('use_scheduler', True),
-        scheduler_type=config.training.get('scheduler_type', 'reduce_on_plateau'),
-        scheduler_patience=config.training.get('scheduler_patience', 5),
-        scheduler_factor=config.training.get('scheduler_factor', 0.1),
-        use_amp=config.training['person_activity'].get('use_amp', True),
-        checkpoint_dir=f"{KAGGLE_OUTPUT}/checkpoints/B1NoRelations" if IS_KAGGLE else config.training['person_activity']['checkpoint_dir'],
+        model_name=getattr(config.training.group_activity, 'model_name', 'B1NoRelations.pth'),
+        num_classes=config.model.group_activity.num_classes,
+        num_epochs=config.training.group_activity.num_epochs,
+        batch_size=config.model.group_activity.batch_size,
+        learning_rate=config.training.person_activity.learning_rate,
+        weight_decay=config.training.person_activity.weight_decay,
+        label_smoothing=getattr(config.training.group_activity, 'label_smoothing', 0.0),
+        optimizer=config.training.person_activity.optimizer,
+        use_scheduler=getattr(config.training, 'use_scheduler', True),
+        scheduler_type=getattr(config.training, 'scheduler_type', 'reduce_on_plateau'),
+        scheduler_patience=getattr(config.training, 'scheduler_patience', 5),
+        scheduler_factor=getattr(config.training, 'scheduler_factor', 0.1),
+        use_amp=getattr(config.training.person_activity, 'use_amp', True),
+        checkpoint_dir=f"{KAGGLE_OUTPUT}/checkpoints/B1NoRelations" if IS_KAGGLE else config.training.person_activity.checkpoint_dir,
         log_dir=f"{KAGGLE_OUTPUT}/results/B1NoRelations" if IS_KAGGLE else "reslutes_and_logs/non_temporal_model",
-        num_workers=config.model['group_activity'].get('num_workers', 4),
-        pin_memory=config.model['group_activity'].get('pin_memory', True),
+        num_workers=getattr(config.model.group_activity, 'num_workers', 4),
+        pin_memory=getattr(config.model.group_activity, 'pin_memory', True),
         # Resume settings
-        resume_from_checkpoint=config.training['group_activity'].get('resume_from_checkpoint', False),
-        checkpoint_path=config.training['group_activity'].get('checkpoint_path', ''),
+        resume_from_checkpoint=getattr(config.training.group_activity, 'resume_from_checkpoint', False),
+        checkpoint_path=getattr(config.training.group_activity, 'checkpoint_path', ''),
         # Final report settings
         generate_final_report=True,
-        class_names=config.model['group_activity'].get('class_names', None),
+        class_names=getattr(config.model.group_activity, 'class_names', None),
     )
     
-    # Model factory function - loads pretrained person classifier
+    # Model factory function
     def create_model():
         # Load pretrained person classifier
-        person_model = person_classifer(num_classes=9)
+        person_model = Person_Classifer(num_classes=9)
         if os.path.exists(person_classifier_path):
-            person_model.load_state_dict(
-                torch.load(person_classifier_path, map_location='cpu')
-            )
+            person_model.load_state_dict(torch.load(person_classifier_path, map_location='cpu'))
             print(f"Loaded pretrained person classifier from {person_classifier_path}")
         else:
             print(f"Warning: Person classifier not found at {person_classifier_path}")
         
-        # Create B1NoRelations model with person classifier
-        model = B1NoRelations(
-            Person=person_model,
-            num_classes=training_config.num_classes
-        )
+        # Create B1NoRelations model
+        model = B1_NoRelations(num_classes=training_config.num_classes)
         return model
     
     # Create trainer and run
@@ -141,7 +136,7 @@ def main():
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         config=training_config,
-        collate_fn=collate_group_fn  # Custom collate for padding bboxes
+        collate_fn=collate_group_fn
     )
     
     trainer.run()
