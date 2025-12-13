@@ -2,18 +2,6 @@
 Generic Distributed Data Parallel (DDP) Trainer
 ================================================
 A unified training module for multi-GPU training across different models.
-
-Usage:
-    from train_utils.ddp_trainer import DDPTrainer, TrainingConfig
-    
-    trainer = DDPTrainer(
-        model_fn=lambda: MyModel(num_classes=8),
-        train_dataset=train_dataset,
-        val_dataset=val_dataset,
-        config=training_config,
-        collate_fn=my_collate_fn  # optional
-    )
-    trainer.run()
 """
 
 import os
@@ -116,6 +104,7 @@ class DDPTrainer:
         self.collate_fn = collate_fn
         self.validate_fn = validate_fn or self._default_validate
         
+        
     def run(self):
         """Start DDP training across all available GPUs."""
         world_size = torch.cuda.device_count()
@@ -153,7 +142,9 @@ class DDPTrainer:
         logger = setup_logger(log_dir, self.config.model_name, rank)
         
         if rank == 0:
+            logger.info(f"Starting {self.config.model_name.replace('.pth', '')} Training")
             logger.info(f"Initialized DDP with world_size={world_size}")
+            logger.info(f"Using device: cuda:{rank}")
         
         # Create model
         model = self.model_fn()
@@ -178,16 +169,17 @@ class DDPTrainer:
         train_loader = DataLoader(
             self.train_dataset, batch_size=self.config.batch_size, sampler=train_sampler,
             collate_fn=self.collate_fn, 
-            #num_workers=self.config.num_workers, pin_memory=self.config.pin_memory
         )
         val_loader = DataLoader(
             self.val_dataset, batch_size=self.config.batch_size, sampler=val_sampler,
             collate_fn=self.collate_fn,
-            #num_workers=self.config.num_workers, pin_memory=self.config.pin_memory
         )
         
         if rank == 0:
-            logger.info(f"Train: {len(self.train_dataset)}, Val: {len(self.val_dataset)}, Batch: {self.config.batch_size}")
+            logger.info(f"Training dataset size: {len(self.train_dataset)}")
+            logger.info(f"Validation dataset size: {len(self.val_dataset)}")
+            logger.info(f"Batch size: {self.config.batch_size}, Num epochs: {self.config.num_epochs}")
+            logger.info(f"Optimizer: {self.config.optimizer.upper()}, LR: {self.config.learning_rate}")
         
         # Loss, AMP, Early stopping
         criterion = nn.CrossEntropyLoss(label_smoothing=self.config.label_smoothing).to(device)
@@ -205,11 +197,22 @@ class DDPTrainer:
         # Resume if needed
         start_epoch, best_val_loss = self._load_checkpoint(model, optimizer, scheduler, scaler, device, logger, rank)
         
+        if rank == 0:
+            logger.info(f"Checkpoint directory: {checkpoint_dir}")
+            logger.info(f"Starting training for {self.config.num_epochs} epochs")
+        
         # Training loop
         for epoch in range(start_epoch, self.config.num_epochs):
             train_sampler.set_epoch(epoch)
             
+            if rank == 0:
+                logger.info(f"Starting epoch {epoch+1}/{self.config.num_epochs}")
+            
             train_loss, train_acc = self._train_epoch(model, train_loader, criterion, optimizer, scaler, device, epoch, logger, writer, rank)
+            
+            if rank == 0:
+                logger.info("Running validation...")
+            
             val_loss, val_acc = self.validate_fn(model, val_loader, criterion, device)
             
             # Reduce val_loss across processes
@@ -217,25 +220,43 @@ class DDPTrainer:
             dist.all_reduce(val_loss_tensor, op=dist.ReduceOp.SUM)
             avg_val_loss = val_loss_tensor.item() / world_size
             
-            # Scheduler step
+            # Scheduler step and check for LR change
+            old_lr = optimizer.param_groups[0]['lr']
             if scheduler:
                 scheduler.step(avg_val_loss) if self.config.scheduler_type == 'reduce_on_plateau' else scheduler.step()
+            new_lr = optimizer.param_groups[0]['lr']
             
             # Logging and checkpointing (rank 0 only)
             if rank == 0:
-                current_lr = optimizer.param_groups[0]['lr']
-                logger.info(f"Epoch {epoch+1}/{self.config.num_epochs} | Train: {train_loss:.4f}/{train_acc:.2f}% | Val: {avg_val_loss:.4f}/{val_acc:.2f}% | LR: {current_lr:.6f}")
+                logger.info(f"Validation completed - Loss: {avg_val_loss:.4f}, Accuracy: {val_acc:.2f}%")
                 
-                writer.add_scalars('Loss', {'train': train_loss, 'val': avg_val_loss}, epoch)
-                writer.add_scalars('Accuracy', {'train': train_acc, 'val': val_acc}, epoch)
+                # Log LR change
+                if old_lr != new_lr:
+                    logger.info(f"Learning rate reduced from {old_lr:.6f} to {new_lr:.6f}")
                 
+                # Save checkpoint
                 if (epoch + 1) % self.config.save_every_n_epochs == 0:
                     self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir, scheduler, scaler)
+                    logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
                 
+                # Epoch summary
+                logger.info(f"Epoch {epoch+1}/{self.config.num_epochs} Results:")
+                logger.info(f"  Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+                logger.info(f"  Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+                logger.info(f"  Learning Rate: {new_lr:.6f}")
+                logger.info("-" * 60)
+                
+                # TensorBoard
+                writer.add_scalars('Loss', {'train': train_loss, 'val': avg_val_loss}, epoch)
+                writer.add_scalars('Accuracy', {'train': train_acc, 'val': val_acc}, epoch)
+                writer.add_scalar('Learning_Rate', new_lr, epoch)
+                
+                # Save best model
                 if avg_val_loss < best_val_loss:
                     best_val_loss = avg_val_loss
                     self._save_best_model(model, checkpoint_dir)
-                    logger.info(f"  New best model! Val Loss: {best_val_loss:.4f}")
+                    logger.info(f"New best model saved with validation loss: {best_val_loss:.4f}")
+                    logger.info(f"Best model saved to: {checkpoint_dir}/{self.config.model_name}")
             
             if early_stopping and rank == 0 and early_stopping(avg_val_loss):
                 logger.info("Early stopping triggered!")
@@ -244,19 +265,26 @@ class DDPTrainer:
             dist.barrier()
         
         # Final evaluation
-        if rank == 0 and self.config.generate_final_report:
-            logger.info("=" * 60)
-            best_model_path = os.path.join(checkpoint_dir, self.config.model_name)
-            if os.path.exists(best_model_path):
-                model.module.load_state_dict(torch.load(best_model_path, map_location=device))
+        if rank == 0:
+            logger.info("Training completed!")
+            logger.info(f"Best validation loss achieved: {best_val_loss:.4f}")
             
-            generate_evaluation_report(
-                model, val_loader, criterion, device, log_dir,
-                self.config.model_name, self.config.num_classes,
-                self.config.class_names, logger
-            )
+            if self.config.generate_final_report:
+                logger.info("Loading best model for final evaluation...")
+                best_model_path = os.path.join(checkpoint_dir, self.config.model_name)
+                if os.path.exists(best_model_path):
+                    model.module.load_state_dict(torch.load(best_model_path, map_location=device))
+                
+                generate_evaluation_report(
+                    model, val_loader, criterion, device, log_dir,
+                    self.config.model_name, self.config.num_classes,
+                    self.config.class_names, logger
+                )
+            
             writer.close()
-            logger.info(f"Training completed! Results saved to: {log_dir}")
+            logger.info("=" * 60)
+            logger.info(f"All results saved to: {log_dir}")
+            logger.info("Training completed successfully")
         
         dist.destroy_process_group()
     
@@ -288,8 +316,10 @@ class DDPTrainer:
             correct += output.argmax(dim=1).eq(target).sum().item()
             total += target.size(0)
             
+            # Log batch progress with current accuracy
             if rank == 0 and (batch_idx + 1) % self.config.log_every_n_batches == 0:
-                logger.info(f"  Batch {batch_idx+1}/{len(train_loader)} - Loss: {loss.item():.4f}")
+                current_acc = 100.0 * correct / total if total > 0 else 0
+                logger.info(f"  Batch {batch_idx+1}/{len(train_loader)} - Loss: {loss.item():.4f}, Acc: {current_acc:.2f}%")
         
         return running_loss / total if total > 0 else 0, 100.0 * correct / total if total > 0 else 0
     
