@@ -37,6 +37,8 @@ reslutes_and_logs/
 # *.pkl
 *.h5
 *.hdf5
+*.ipynb
+kaggle_notebooks/
 
 # Logs
 logs/
