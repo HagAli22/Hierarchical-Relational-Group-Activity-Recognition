@@ -9,9 +9,28 @@ from torchvision import transforms
 from PIL import Image
 import random
 import h5py
-sys.path.append('D:\VSCODE\GNN')
 
+# Import BoxInfo and register it for pickle compatibility
 from data.boxinfo import BoxInfo
+
+# Register BoxInfo in sys.modules to fix pickle loading issues
+# The pickle file may have been saved with BoxInfo from different module paths
+sys.modules['boxinfo'] = type(sys)('boxinfo')
+sys.modules['boxinfo'].BoxInfo = BoxInfo
+
+
+class CustomUnpickler(pickle.Unpickler):
+    """Custom unpickler that handles BoxInfo class from different module paths."""
+    def find_class(self, module, name):
+        if name == 'BoxInfo':
+            return BoxInfo
+        return super().find_class(module, name)
+
+
+def load_pickle_with_boxinfo(path):
+    """Load pickle file with BoxInfo class compatibility."""
+    with open(path, 'rb') as f:
+        return CustomUnpickler(f).load()
 
 
 def load_tracking_annot(path):
@@ -199,8 +218,7 @@ class Person_classifier_loaders(Dataset):
         
         
         try:
-            with open(annot_path, 'rb') as file:
-                videos_annot = pickle.load(file)
+            videos_annot = load_pickle_with_boxinfo(annot_path)
         except Exception as e:
             raise
 
@@ -281,8 +299,7 @@ class GroupActivityDataset(Dataset):
         self.data=[]
         self.clip={}
         
-        with open(annot_path,'rb')as file:
-            videos_annot=pickle.load(file)
+        videos_annot = load_pickle_with_boxinfo(annot_path)
         
         f = h5py.File(feature_path, 'r')
 
