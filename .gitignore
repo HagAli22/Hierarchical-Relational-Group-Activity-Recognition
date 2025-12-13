@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.kiro/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Training outputs (large files - don't upload to GitHub)
+checkpoints/
+reslutes_and_logs/
+*.pth
+*.pt
+*.ckpt
+*.tar
+
+# Kaggle
+/kaggle/
+
+# Data files (usually too large for GitHub)
+# *.pkl
+*.h5
+*.hdf5
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

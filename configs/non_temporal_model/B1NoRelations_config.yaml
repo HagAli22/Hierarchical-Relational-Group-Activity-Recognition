@@ -1,0 +1,116 @@
+# Baseline 1 Configuration: No Relations (B1)
+# Description: Basline model that recognizes group activity by pooling individual features without relational modeling.
+
+experiment_name: "B1_NoRelations"
+description: "Stage 2 Baseline: No relational reasoning, uses Person Classifier features directly."
+seed: 42
+
+# Logging and monitoring
+use_tensorboard: true
+use_wandb: false
+wandb_project: "volleyball-activity-recognition"
+
+# Data configuration
+data:
+  # Default paths (based on project structure)
+  dataset_root: "volleyball-datasets"
+  videos_path:  "volleyball-datasets/videos"
+  annot_path:   "data/annot_all.pkl"
+  
+  # Data splits (Same as Person Classifier)
+  train_split: [1, 3, 6, 7, 10, 13, 15, 16, 18, 22, 23, 31, 32, 36, 38, 39, 40, 41, 42, 48, 50, 52, 53, 54]
+  val_split: [0, 2, 8, 12, 17, 19, 24, 26, 27, 28, 30, 33, 46, 49, 51]
+  test_split: [4, 5, 9, 11, 14, 20, 21, 25, 29, 34, 35, 37, 43, 44, 45, 47]
+
+  # Augmentations (Applied to crops during runtime if needed)
+  use_augmentation: true
+  image_size: 224
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+# Model configuration
+model:
+  group_activity:
+    name: "B1NoRelations"
+    num_classes: 8
+    class_names: ["l-pass", "r-pass", "l-spike", "r_spike", "l_set", "r_set", "l_winpoint", "r_winpoint"]
+    
+    # Architecture params
+    hidden_size: 512
+    num_layers: 2
+    
+    # load settings
+    batch_size: 8
+    num_workers: 4
+    pin_memory: True
+    shuffle_train: true
+
+# Training configuration
+training:
+  # Global training settings
+  use_scheduler: true
+  scheduler_type: "reduce_on_plateau"
+  scheduler_patience: 5
+  scheduler_factor: 0.1
+  scheduler_min_lr: 1e-6
+
+  group_activity:
+    num_epochs: 40
+    learning_rate: 1e-4
+    weight_decay: 0.01
+    label_smoothing: 0.15
+    model_name: "B1NoRelations_best.pth"
+    
+    optimizer: "adamW"
+    
+    # Early stopping
+    use_early_stopping: true
+    early_stopping_patience: 10
+    early_stopping_min_delta: 0.0001
+    
+    # Dependencies
+    # Path to the best trained person classifier (Stage 1)
+    person_classifier_path: "checkpoints/person_classifier/person_classifier_best.pth"
+    
+    # Resume/Checkpointing
+    resume_from_checkpoint: false
+    checkpoint_path: ""
+    
+    checkpoint_dir: "checkpoints/B1NoRelations"
+    save_best_model: true
+    save_every_n_epochs: 2
+    
+    # Logging
+    log_every_n_batches: 20
+    
+    # Hardware
+    use_amp: true
+    device: "auto"
+
+  # Fallback params (for scripts that check person_activity key)
+  person_activity:
+    learning_rate: 1e-4
+    weight_decay: 0.01
+    optimizer: "adamW"
+    use_amp: true
+    checkpoint_dir: "checkpoints/B1NoRelations"
+    model_name: "B1NoRelations_best.pth"
+  
+  # DDP settings (for multi-GPU training)
+  ddp:
+    master_addr: "127.0.0.1"
+    master_port: "29500"
+    backend: "nccl"
+
+# Evaluation configuration
+evaluation:
+  batch_size: 8
+  
+  # Directories
+  results_root: "reslutes_and_logs"
+  
+  # Visualization flags
+  save_predictions: true
+  save_visualizations: true
+  plot_confusion_matrix: true
+  save_classification_report: true
