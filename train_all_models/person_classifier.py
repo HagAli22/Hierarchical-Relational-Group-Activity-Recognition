@@ -17,6 +17,7 @@ from albumentations.pytorch import ToTensorV2
 
 from configs.config_loader import load_config
 from data.data_loader import Person_classifier_loaders
+from data.boxinfo import BoxInfo
 from models import Person_Classifer
 from train_utils.ddp_trainer import DDPTrainer, TrainingConfig
 

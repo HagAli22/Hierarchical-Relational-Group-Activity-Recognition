@@ -14,6 +14,7 @@ from albumentations.pytorch import ToTensorV2
 
 from configs.config_loader import load_config
 from data.data_loader import GroupActivityDataset
+from data.boxinfo import BoxInfo
 from models import B1_NoRelations, collate_group_fn, Person_Classifer
 from train_utils.ddp_trainer import DDPTrainer, TrainingConfig
 
