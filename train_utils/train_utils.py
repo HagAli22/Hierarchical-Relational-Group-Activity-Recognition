@@ -140,6 +140,11 @@ def create_optimizer(model, optimizer_name: str, lr: float, weight_decay: float,
     """Create optimizer based on name."""
     opt_name = optimizer_name.lower()
     
+    # Ensure numeric types (config may load as strings)
+    lr = float(lr)
+    weight_decay = float(weight_decay)
+    momentum = float(momentum)
+    
     if opt_name == 'adamw':
         return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     elif opt_name == 'adam':
@@ -151,6 +156,12 @@ def create_optimizer(model, optimizer_name: str, lr: float, weight_decay: float,
 def create_scheduler(optimizer, scheduler_type: str, num_epochs: int, 
                      patience: int = 5, factor: float = 0.1, min_lr: float = 1e-6):
     """Create learning rate scheduler based on type."""
+    # Ensure numeric types
+    num_epochs = int(num_epochs)
+    patience = int(patience)
+    factor = float(factor)
+    min_lr = float(min_lr)
+    
     if scheduler_type == 'reduce_on_plateau':
         return torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode='min', patience=patience, factor=factor, min_lr=min_lr
