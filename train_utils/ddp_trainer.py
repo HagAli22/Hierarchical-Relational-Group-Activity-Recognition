@@ -11,7 +11,8 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
-from torch.cuda.amp import GradScaler, autocast
+from torch.cuda.amp import GradScaler
+from torch import amp
 from torch.utils.tensorboard import SummaryWriter
 from dataclasses import dataclass
 from typing import Callable, Optional, List
@@ -132,6 +133,9 @@ class DDPTrainer:
         torch.cuda.set_device(rank)
         device = torch.device(f"cuda:{rank}")
         
+        # Enable cuDNN benchmark for faster training with fixed input sizes
+        torch.backends.cudnn.benchmark = True
+        
         # Setup logging
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_dir = os.path.join(
@@ -149,7 +153,7 @@ class DDPTrainer:
         # Create model
         model = self.model_fn()
         model = model.to(device)
-        model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        #model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
         
         # Create optimizer and scheduler
@@ -208,17 +212,38 @@ class DDPTrainer:
             if rank == 0:
                 logger.info(f"Starting epoch {epoch+1}/{self.config.num_epochs}")
             
-            train_loss, train_acc = self._train_epoch(model, train_loader, criterion, optimizer, scaler, device, epoch, logger, writer, rank)
+            # Get raw training metrics from this GPU
+            train_total_loss, train_correct, train_total = self._train_epoch(
+                model, train_loader, criterion, optimizer, scaler, device, epoch, logger, writer, rank
+            )
+            
+            # Aggregate training metrics across all GPUs
+            train_metrics = torch.tensor([train_total_loss, train_correct, train_total], dtype=torch.float64, device=device)
+            dist.all_reduce(train_metrics, op=dist.ReduceOp.SUM)
+            
+            # Calculate global training metrics
+            train_loss = train_metrics[0].item() / train_metrics[2].item() if train_metrics[2].item() > 0 else 0
+            train_acc = 100.0 * train_metrics[1].item() / train_metrics[2].item() if train_metrics[2].item() > 0 else 0
             
             if rank == 0:
                 logger.info("Running validation...")
             
-            val_loss, val_acc = self.validate_fn(model, val_loader, criterion, device)
+            # Get raw validation metrics from this GPU
+            val_total_loss, val_correct, val_total = self.validate_fn(model, val_loader, criterion, device)
             
-            # Reduce val_loss across processes
-            val_loss_tensor = torch.tensor(val_loss).to(device)
-            dist.all_reduce(val_loss_tensor, op=dist.ReduceOp.SUM)
-            avg_val_loss = val_loss_tensor.item() / world_size
+            # Aggregate metrics across all GPUs using all_reduce
+            # Create tensors for aggregation
+            metrics_tensor = torch.tensor([val_total_loss, val_correct, val_total], dtype=torch.float64, device=device)
+            dist.all_reduce(metrics_tensor, op=dist.ReduceOp.SUM)
+            
+            # Calculate global metrics
+            global_total_loss = metrics_tensor[0].item()
+            global_correct = metrics_tensor[1].item()
+            global_total = metrics_tensor[2].item()
+            
+            # Compute proper averages
+            avg_val_loss = global_total_loss / global_total if global_total > 0 else 0
+            val_acc = 100.0 * global_correct / global_total if global_total > 0 else 0
             
             # Scheduler step and check for LR change
             old_lr = optimizer.param_groups[0]['lr']
@@ -289,7 +314,7 @@ class DDPTrainer:
         dist.destroy_process_group()
     
     def _train_epoch(self, model, train_loader, criterion, optimizer, scaler, device, epoch, logger, writer, rank):
-        """Train for one epoch."""
+        """Train for one epoch. Returns raw values for DDP aggregation."""
         model.train()
         running_loss, correct, total = 0.0, 0, 0
         
@@ -300,7 +325,7 @@ class DDPTrainer:
             optimizer.zero_grad()
             
             if self.config.use_amp and scaler:
-                with autocast(dtype=torch.float16):
+                with amp.autocast('cuda', dtype=torch.float16):
                     output = model(data)
                     loss = criterion(output, target)
                 scaler.scale(loss).backward()
@@ -312,31 +337,39 @@ class DDPTrainer:
                 loss.backward()
                 optimizer.step()
             
-            running_loss += loss.item() * data.size(0)
+            batch_size = data.size(0)
+            running_loss += loss.item() * batch_size
             correct += output.argmax(dim=1).eq(target).sum().item()
-            total += target.size(0)
+            total += batch_size
             
-            # Log batch progress with current accuracy
+            # Log batch progress with current accuracy (local to this GPU)
             if rank == 0 and (batch_idx + 1) % self.config.log_every_n_batches == 0:
                 current_acc = 100.0 * correct / total if total > 0 else 0
                 logger.info(f"  Batch {batch_idx+1}/{len(train_loader)} - Loss: {loss.item():.4f}, Acc: {current_acc:.2f}%")
         
-        return running_loss / total if total > 0 else 0, 100.0 * correct / total if total > 0 else 0
+        # Return raw values for DDP aggregation
+        return running_loss, correct, total
     
     def _default_validate(self, model, val_loader, criterion, device):
-        """Default validation function."""
+        """
+        Default validation function.
+        Returns raw values (total_loss, correct, total) for proper DDP aggregation.
+        """
         model.eval()
-        val_loss, correct, total = 0.0, 0, 0
+        total_loss, correct, total = 0.0, 0, 0
         
         with torch.no_grad():
             for data, target in val_loader:
                 data, target = data.to(device), target.to(device, dtype=torch.long)
                 output = model(data)
-                val_loss += criterion(output, target).item()
+                batch_size = target.size(0)
+                # Accumulate loss * batch_size for proper averaging later
+                total_loss += criterion(output, target).item() * batch_size
                 correct += output.argmax(dim=1).eq(target).sum().item()
-                total += target.size(0)
+                total += batch_size
         
-        return val_loss / len(val_loader) if len(val_loader) > 0 else 0, 100.0 * correct / total if total > 0 else 0
+        # Return raw values for DDP aggregation
+        return total_loss, correct, total
     
     def _save_checkpoint(self, model, optimizer, epoch, val_loss, val_acc, checkpoint_dir, scheduler=None, scaler=None):
         """Save training checkpoint."""
