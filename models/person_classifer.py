@@ -11,6 +11,7 @@ class Person_Classifer(nn.Module):
         )
 
         self.fc = nn.Sequential(
+            nn.Dropout(0.2),
             nn.Linear(2048, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
