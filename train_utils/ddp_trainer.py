@@ -173,10 +173,12 @@ class DDPTrainer:
         train_loader = DataLoader(
             self.train_dataset, batch_size=self.config.batch_size, sampler=train_sampler,
             collate_fn=self.collate_fn, 
+            pin_memory=self.config.pin_memory, num_workers=self.config.num_workers
         )
         val_loader = DataLoader(
             self.val_dataset, batch_size=self.config.batch_size, sampler=val_sampler,
             collate_fn=self.collate_fn,
+            pin_memory=self.config.pin_memory, num_workers=self.config.num_workers
         )
         
         if rank == 0:
