@@ -113,6 +113,13 @@ def main():
         transform=val_transform
     )
     
+    test_dataset = Person_classifier_loaders(
+        videos_path="/kaggle/input/volleyball/volleyball_/videos",
+        annot_path="data/annot_all.pkl",
+        split=config.data.test_split,
+        transform=val_transform
+    )
+    
     # Create training config
     training_config = TrainingConfig(
         model_name=config.training.person_activity.model_name,
@@ -144,7 +151,8 @@ def main():
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         config=training_config,
-        collate_fn=None
+        collate_fn=None,
+        test_dataset=test_dataset
     )
     
     trainer.run()

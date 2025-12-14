@@ -97,10 +97,12 @@ class DDPTrainer:
         config: TrainingConfig,
         collate_fn: Optional[Callable] = None,
         validate_fn: Optional[Callable] = None,
+        test_dataset=None,
     ):
         self.model_fn = model_fn
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
+        self.test_dataset = test_dataset
         self.config = config
         self.collate_fn = collate_fn
         self.validate_fn = validate_fn or self._default_validate
@@ -302,8 +304,22 @@ class DDPTrainer:
                 if os.path.exists(best_model_path):
                     model.module.load_state_dict(torch.load(best_model_path, map_location=device))
                 
+                # Use test_dataset if provided, otherwise fall back to val_dataset
+                if self.test_dataset is not None:
+                    logger.info("Running final evaluation on TEST set...")
+                    test_sampler = DistributedSampler(self.test_dataset, num_replicas=world_size, rank=rank, shuffle=False)
+                    test_loader = DataLoader(
+                        self.test_dataset, batch_size=self.config.batch_size, sampler=test_sampler,
+                        collate_fn=self.collate_fn,
+                        pin_memory=self.config.pin_memory, num_workers=self.config.num_workers
+                    )
+                    eval_loader = test_loader
+                else:
+                    logger.info("Running final evaluation on VALIDATION set...")
+                    eval_loader = val_loader
+                
                 generate_evaluation_report(
-                    model, val_loader, criterion, device, log_dir,
+                    model, eval_loader, criterion, device, log_dir,
                     self.config.model_name, self.config.num_classes,
                     self.config.class_names, logger
                 )

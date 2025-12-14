@@ -65,8 +65,8 @@ training:
   scheduler_min_lr: 1e-6
   
   person_activity:
-    num_epochs: 1
-    learning_rate: 9e-4
+    num_epochs: 10
+    learning_rate: 7e-4
     weight_decay: 0.0001
     momentum: 0.9
     label_smoothing: 0.1
