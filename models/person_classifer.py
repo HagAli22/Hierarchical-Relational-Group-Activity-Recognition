@@ -20,8 +20,8 @@ class Person_Classifer(nn.Module):
         )
     
     def forward(self, x):
-        b, c, h, w = x.shape      # x.shape => batch, channals , hight, width
-        x = self.resnet50(x)      # (batch, 2048, 1 , 1)
+        b, c, h, w = x.shape
+        x = self.resnet50(x)      # (batch, 2048, 1, 1)
         x = x.view(b, -1)         # (batch, 2048)
         x = self.fc(x)            # (batch, num_class)          
         return x
