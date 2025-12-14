@@ -68,19 +68,11 @@ def get_transforms():
     # ])
     train_transform = A.Compose([
         A.Resize(224, 224),
+        A.HorizontalFlip(p=0.5),
         A.OneOf([
-            A.GaussianBlur(blur_limit=(3, 7)),
-            A.ColorJitter(brightness=0.2),
-            A.RandomBrightnessContrast(),
-            A.GaussNoise(),
-            A.MotionBlur(blur_limit=5), 
-            A.MedianBlur(blur_limit=5)  
-        ], p=0.95),
-        A.OneOf([
-            A.HorizontalFlip(),
-            A.VerticalFlip(),
-            A.RandomRotate90()
-        ], p=0.01),
+            A.ColorJitter(brightness=0.2, contrast=0.2),
+            A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2),
+        ], p=0.3),
         A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2()
     ])

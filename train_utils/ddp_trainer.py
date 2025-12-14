@@ -220,7 +220,7 @@ class DDPTrainer:
             )
             
             # Aggregate training metrics across all GPUs
-            train_metrics = torch.tensor([train_total_loss, train_correct, train_total], dtype=torch.float64, device=device)
+            train_metrics = torch.tensor([train_total_loss, train_correct, train_total], dtype=torch.float32, device=device)
             dist.all_reduce(train_metrics, op=dist.ReduceOp.SUM)
             
             # Calculate global training metrics
@@ -235,7 +235,7 @@ class DDPTrainer:
             
             # Aggregate metrics across all GPUs using all_reduce
             # Create tensors for aggregation
-            metrics_tensor = torch.tensor([val_total_loss, val_correct, val_total], dtype=torch.float64, device=device)
+            metrics_tensor = torch.tensor([val_total_loss, val_correct, val_total], dtype=torch.float32, device=device)
             dist.all_reduce(metrics_tensor, op=dist.ReduceOp.SUM)
             
             # Calculate global metrics
@@ -321,8 +321,8 @@ class DDPTrainer:
         running_loss, correct, total = 0.0, 0, 0
         
         for batch_idx, (data, target) in enumerate(train_loader):
-            data = data.to(device, non_blocking=True)
-            target = target.to(device, dtype=torch.long, non_blocking=True)
+            data = data.to(device)
+            target = target.to(device, dtype=torch.long)
             
             optimizer.zero_grad()
             

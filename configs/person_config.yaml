@@ -66,10 +66,10 @@ training:
   
   person_activity:
     num_epochs: 1
-    learning_rate: 1e-4
-    weight_decay: 1
+    learning_rate: 3e-4
+    weight_decay: 0.0001
     momentum: 0.9
-    label_smoothing: 0.01
+    label_smoothing: 0.1
     
     optimizer: "adamw"  # Options: adam, adamw, sgd
     
