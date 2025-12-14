@@ -87,7 +87,7 @@ training:
     
     # Resume training from checkpoint
     resume_from_checkpoint: true
-    checkpoint_path: "/kaggle/working/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/checkpoint_epoch_10.pth"
+    checkpoint_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/checkpoint_epoch_10.pth"
     
     # Logging
     log_every_n_batches: 50
