@@ -66,7 +66,7 @@ training:
   
   person_activity:
     num_epochs: 1
-    learning_rate: 5e-4
+    learning_rate: 7e-4
     weight_decay: 0.0001
     momentum: 0.9
     label_smoothing: 0.1
