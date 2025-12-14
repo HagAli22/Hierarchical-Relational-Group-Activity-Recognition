@@ -69,7 +69,6 @@ def get_transforms():
     train_transform = A.Compose([
         A.Resize(224, 224),
         A.HorizontalFlip(p=0.5),
-        A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=10, p=0.3),
         A.OneOf([
             A.ColorJitter(brightness=0.2, contrast=0.2),
             A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2),
