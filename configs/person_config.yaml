@@ -65,7 +65,7 @@ training:
   scheduler_min_lr: 1e-5
   
   person_activity:
-    num_epochs: 15
+    num_epochs: 8
     learning_rate: 1e-3
     weight_decay: 1e-4
     momentum: 0.9
@@ -87,7 +87,7 @@ training:
     
     # Resume training from checkpoint
     resume_from_checkpoint: true
-    checkpoint_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/checkpoint_epoch_10.pth"
+    checkpoint_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/checkpoint_epoch_2.pth"
     
     # Logging
     log_every_n_batches: 50
