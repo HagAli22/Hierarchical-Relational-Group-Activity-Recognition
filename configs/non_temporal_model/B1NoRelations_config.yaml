@@ -81,7 +81,7 @@ training:
     save_every_n_epochs: 2
     
     # Logging
-    log_every_n_batches: 40
+    log_every_n_batches: 50
     
     # Hardware
     use_amp: true
@@ -104,7 +104,7 @@ training:
 
 # Evaluation configuration
 evaluation:
-  batch_size: 8
+  batch_size: 64
   
   # Directories
   results_root: "reslutes_and_logs"

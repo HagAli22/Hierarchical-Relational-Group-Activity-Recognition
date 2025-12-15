@@ -31,7 +31,7 @@ PERSON_CLASSIFIER_PATH = "/kaggle/input/person-classifer/results/person_classifi
 
 def create_model():
     """Model factory function - must be defined at module level for multiprocessing."""
-    
+
     person_model = Person_Classifer(num_classes=9)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     person_checkpoint = torch.load(PERSON_CLASSIFIER_PATH, map_location=device, weights_only=True)
@@ -117,9 +117,10 @@ def main():
         scheduler_type=getattr(config.training, 'scheduler_type', 'reduce_on_plateau'),
         scheduler_patience=getattr(config.training, 'scheduler_patience', 5),
         scheduler_factor=getattr(config.training, 'scheduler_factor', 0.1),
-        use_amp=getattr(config.training.person_activity, 'use_amp', True),
+        use_amp=getattr(config.training.group_activity, 'use_amp', True),
         checkpoint_dir=f"{KAGGLE_OUTPUT}/checkpoints/B1NoRelations" if IS_KAGGLE else config.training.person_activity.checkpoint_dir,
         log_dir=f"{KAGGLE_OUTPUT}/results/B1NoRelations" if IS_KAGGLE else "reslutes_and_logs/non_temporal_model",
+        log_every_n_batches=getattr(config.training.group_activaty, 'log_every_n_batches', 20),
         num_workers=getattr(config.model.group_activity, 'num_workers', 4),
         pin_memory=getattr(config.model.group_activity, 'pin_memory', True),
         resume_from_checkpoint=getattr(config.training.group_activity, 'resume_from_checkpoint', False),
