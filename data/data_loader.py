@@ -355,7 +355,7 @@ class GroupActivityDataset(Dataset):
         label_idx = self.categories_dct[sample['category']]
 
         frame_data=sample['clip_data']
-        clip=[]
+        clip_frames=[]
 
         for idx,clip,frame_id,frame_boxes,frame_path in frame_data:
             seq_player=[]
@@ -383,10 +383,10 @@ class GroupActivityDataset(Dataset):
                 seq_player = [img for _, img in orders_with_images]
 
             seq_player = torch.stack(seq_player)
-            clip.append(seq_player)
+            clip_frames.append(seq_player)
 
-        clip = torch.stack(clip).permute(1, 0, 2, 3, 4) # (num_people, num_frames, c,h,w)
+        clip_frames = torch.stack(clip_frames).permute(1, 0, 2, 3, 4) # (num_people, num_frames, c,h,w)
 
-        return clip, label_idx
+        return clip_frames, label_idx
 
 
