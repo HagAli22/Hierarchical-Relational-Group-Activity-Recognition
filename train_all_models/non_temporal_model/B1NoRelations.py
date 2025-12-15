@@ -120,7 +120,7 @@ def main():
         use_amp=getattr(config.training.group_activity, 'use_amp', True),
         checkpoint_dir=f"{KAGGLE_OUTPUT}/checkpoints/B1NoRelations" if IS_KAGGLE else config.training.person_activity.checkpoint_dir,
         log_dir=f"{KAGGLE_OUTPUT}/results/B1NoRelations" if IS_KAGGLE else "reslutes_and_logs/non_temporal_model",
-        log_every_n_batches=getattr(config.training.group_activaty, 'log_every_n_batches', 20),
+        log_every_n_batches=getattr(config.training.group_activity, 'log_every_n_batches', 20),
         num_workers=getattr(config.model.group_activity, 'num_workers', 4),
         pin_memory=getattr(config.model.group_activity, 'pin_memory', True),
         resume_from_checkpoint=getattr(config.training.group_activity, 'resume_from_checkpoint', False),
