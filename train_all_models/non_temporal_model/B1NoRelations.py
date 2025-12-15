@@ -26,38 +26,32 @@ KAGGLE_OUTPUT = "/kaggle/working" if IS_KAGGLE else "."
 
 # Global variables for model creation (needed for pickling)
 NUM_CLASSES = 8
-PERSON_CLASSIFIER_PATH = ""
+PERSON_CLASSIFIER_PATH = "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
 
 
 def create_model():
     """Model factory function - must be defined at module level for multiprocessing."""
-    return B1_NoRelations(num_classes=NUM_CLASSES)
+    
+    person_model = Person_Classifer(num_classes=9)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    person_checkpoint = torch.load(PERSON_CLASSIFIER_PATH, map_location=device, weights_only=True)
+    
+    # Handle both checkpoint formats (dict with 'model_state_dict' or direct state_dict)
+    if isinstance(person_checkpoint, dict) and 'model_state_dict' in person_checkpoint:
+        person_model.load_state_dict(person_checkpoint['model_state_dict'])
+    else:
+        person_model.load_state_dict(person_checkpoint)
+
+    return B1_NoRelations(person_model, num_classes=NUM_CLASSES)
 
 
 def get_transforms():
     """Get train and validation transforms."""
     train_transform = albu.Compose([
         albu.Resize(224, 224),
-        albu.OneOf([
-            albu.HorizontalFlip(p=1.0),
-            albu.Rotate(limit=20, p=1.0),
-            albu.ShiftScaleRotate(shift_limit=0.15, scale_limit=0.25, rotate_limit=20, p=1.0),
-        ], p=0.6),
-        albu.OneOf([
-            albu.ColorJitter(brightness=0.35, contrast=0.35, saturation=0.35, hue=0.15, p=1.0),
-            albu.RandomBrightnessContrast(brightness_limit=0.35, contrast_limit=0.35, p=1.0),
-            albu.HueSaturationValue(hue_shift_limit=25, sat_shift_limit=35, val_shift_limit=25, p=1.0),
-        ], p=0.7),
-        albu.OneOf([
-            albu.GaussianBlur(blur_limit=(3, 9), p=1.0),
-            albu.MotionBlur(blur_limit=9, p=1.0),
-            albu.GaussNoise(var_limit=(10, 60), p=1.0),
-        ], p=0.6),
-        albu.CoarseDropout(
-            max_holes=12, max_height=20, max_width=20,
-            min_holes=3, min_height=10, min_width=10, 
-            p=0.4
-        ),
+        albu.HorizontalFlip(p=0.5),
+        albu.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.1, rotate_limit=10, p=0.3),
+        albu.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, p=0.3),
         albu.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2()
     ])
@@ -101,6 +95,14 @@ def main():
         transform=val_transform
     )
     
+    test_dataset = GroupActivityDataset(
+        videos_path="/kaggle/input/volleyball/volleyball_/videos",
+        annot_path="data/annot_all.pkl",
+        split=config.data.test_split,
+        sec=False,
+        transform=val_transform
+    )
+    
     # Create training config
     training_config = TrainingConfig(
         model_name=getattr(config.training.group_activity, 'model_name', 'B1NoRelations.pth'),
@@ -132,7 +134,8 @@ def main():
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         config=training_config,
-        collate_fn=collate_group_fn
+        collate_fn=collate_group_fn,
+        test_dataset=test_dataset
     )
     
     trainer.run()

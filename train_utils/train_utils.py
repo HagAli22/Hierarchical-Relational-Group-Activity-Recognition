@@ -17,8 +17,8 @@ try:
     from sklearn.metrics import confusion_matrix, classification_report
     import matplotlib.pyplot as plt
     import seaborn as sns
-    SKLEARN_AVAILABLE = True
-except ImportError:
+    SKLEARN_AVAILABLE = True 
+except ImportError: 
     SKLEARN_AVAILABLE = False
 
 

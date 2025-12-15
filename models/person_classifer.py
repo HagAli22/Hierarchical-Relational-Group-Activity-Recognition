@@ -21,7 +21,7 @@ class Person_Classifer(nn.Module):
     
     def forward(self, x):
         b, c, h, w = x.shape
-        x = self.resnet50(x)      # (batch, 2048, 1, 1)
-        x = x.view(b, -1)         # (batch, 2048)
-        x = self.fc(x)            # (batch, num_class)          
+        x = self.resnet50(x)      # (b, 2048, 1, 1)
+        x = x.view(b, -1)         # (b, 2048)
+        x = self.fc(x)            # (b, num_class)          
         return x

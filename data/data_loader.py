@@ -280,7 +280,7 @@ class Person_classifier_loaders(Dataset):
 
 
 class GroupActivityDataset(Dataset):
-    def __init__(self, videos_path,annot_path, split,feature_path, sort = True,sec=False, transform=None):
+    def __init__(self, videos_path,annot_path, split, sort = True,sec=False, transform=None):
         self.samples = []
         self.transform = transform
         self.sort = sort # If True, prepares data for the 2-group model
@@ -300,18 +300,6 @@ class GroupActivityDataset(Dataset):
         self.clip={}
         
         videos_annot = load_pickle_with_boxinfo(annot_path)
-        
-        f = h5py.File(feature_path, 'r')
-
-        self.features=f["fc7_features"]
-        self.labels=f["labels"]
-        self.meta=f["meta"][:]
-
-        # Build lookup dict
-        self.index_map = {}
-        for i, m in enumerate(self.meta):
-            vid, cid, fid, bid = m
-            self.index_map[(vid, cid, fid, bid)] = i
 
 
         for idx in split:
@@ -366,13 +354,13 @@ class GroupActivityDataset(Dataset):
         sample=self.data[idx]
         label_idx = self.categories_dct[sample['category']]
 
-        frame_data=sample['frame_data']
+        frame_data=sample['clip_data']
         clip=[]
 
-        for idx,clip,frame_id,frame_boxes in frame_data:
+        for idx,clip,frame_id,frame_boxes,frame_path in frame_data:
             seq_player=[]
             orders=[]
-            
+            frame = cv2.imread(frame_path)
             for box_info in frame_boxes:
 
                 x1, y1, x2, y2 = box_info.box
@@ -380,12 +368,13 @@ class GroupActivityDataset(Dataset):
                 x_center = (x1 + x2) // 2
                 orders.append(x_center)
 
-                box_id = box_info.box_ID
+                # Crop the image based on the bounding box
+                person_crop = frame[y1:y2, x1:x2]
+                if self.transform:
+                    transformed = self.transform(image=person_crop)
+                    image = transformed['image']
 
-                index_in_meta = (idx, clip, frame_id, box_id)
-                feature_idx = self.index_map[index_in_meta]
-                box_feature = torch.tensor(self.features[feature_idx])
-                seq_player.append(box_feature)
+                seq_player.append(image)
 
             if self.sort:
                 # Sort seq_player based on orders
@@ -396,7 +385,7 @@ class GroupActivityDataset(Dataset):
             seq_player = torch.stack(seq_player)
             clip.append(seq_player)
 
-        clip = torch.stack(clip).permute(1, 0, 2) # (num_people, num_frames, feature_dim)
+        clip = torch.stack(clip).permute(1, 0, 2, 3, 4) # (num_people, num_frames, c,h,w)
 
         return clip, label_idx
 
