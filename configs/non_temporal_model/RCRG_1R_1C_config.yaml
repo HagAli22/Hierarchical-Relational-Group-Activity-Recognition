@@ -56,9 +56,9 @@ training:
   scheduler_min_lr: 1e-5
 
   group_activity:
-    num_epochs: 30
-    learning_rate: 1e-3
-    weight_decay: 1e-4
+    num_epochs: 2
+    learning_rate: 1e-4
+    weight_decay: 0.01
     label_smoothing: 0.1
     model_name: "RCRG_1R_1C_best.pth"
     
@@ -82,7 +82,7 @@ training:
     save_every_n_epochs: 2
     
     # Logging
-    log_every_n_batches: 20
+    log_every_n_batches: 50
     
     # Hardware
     use_amp: true
