@@ -1,8 +1,8 @@
-# Baseline 1 Configuration: No Relations (B1)
-# Description: Basline model that recognizes group activity by pooling individual features without relational modeling.
+# RCRG-1R-1C Configuration
+# Description: Relational model with 1 Relational layer and 1 Clique (all 12 players)
 
-experiment_name: "B1_NoRelations"
-description: "Stage 2 Baseline: No relational reasoning, uses Person Classifier features directly."
+experiment_name: "RCRG_1R_1C"
+description: "Stage 2: Relational reasoning between all player pairs using pairwise MLP."
 seed: 42
 
 # Logging and monitoring
@@ -31,16 +31,17 @@ data:
 # Model configuration
 model:
   group_activity:
-    name: "B1NoRelations"
+    name: "RCRG_1R_1C"
     num_classes: 8
     class_names: ["l-pass", "r-pass", "l-spike", "r_spike", "l_set", "r_set", "l_winpoint", "r_winpoint"]
     
     # Architecture params
-    hidden_size: 512
-    num_layers: 2
+    hidden_size: 128
+    num_relations: 1
+    num_cliques: 1
     
     # load settings
-    batch_size: 64
+    batch_size: 8
     num_workers: 4
     pin_memory: True
     shuffle_train: true
@@ -56,13 +57,12 @@ training:
 
   group_activity:
     num_epochs: 30
-    learning_rate: 1e-4
-    weight_decay: 0.01
+    learning_rate: 1e-3
+    weight_decay: 1e-4
     label_smoothing: 0.1
-    model_name: "B1NoRelations_best.pth"
+    model_name: "RCRG_1R_1C_best.pth"
     
     optimizer: "adamW"
-    use_amp: true
     
     # Early stopping
     use_early_stopping: true
@@ -77,19 +77,25 @@ training:
     resume_from_checkpoint: false
     checkpoint_path: ""
     
-    checkpoint_dir: "checkpoints/B1NoRelations"
+    checkpoint_dir: "checkpoints/RCRG_1R_1C"
     save_best_model: true
     save_every_n_epochs: 2
     
     # Logging
-    log_every_n_batches: 50
+    log_every_n_batches: 20
     
     # Hardware
     use_amp: true
     device: "auto"
 
-  
-    model_name: "B1NoRelations_best.pth"
+  # Fallback params (for scripts that check person_activity key)
+  person_activity:
+    learning_rate: 1e-3
+    weight_decay: 1e-4
+    optimizer: "adamW"
+    use_amp: true
+    checkpoint_dir: "checkpoints/RCRG_1R_1C"
+    model_name: "RCRG_1R_1C_best.pth"
   
   # DDP settings (for multi-GPU training)
   ddp:
@@ -99,7 +105,7 @@ training:
 
 # Evaluation configuration
 evaluation:
-  batch_size: 64
+  batch_size: 8
   
   # Directories
   results_root: "reslutes_and_logs"
