@@ -17,10 +17,11 @@ class RCRG_1R_1C(nn.Module):
             param.requires_grad = False  # Freeze person feature extractor
             
         self.shared = nn.Sequential(
-            nn.Linear(in_features=feature_dim * 2, out_features=512),
+            nn.Dropout(0.5),
+            nn.Linear(in_features=feature_dim * 2, out_features=256),
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(in_features=512, out_features=128)
+            nn.Dropout(0.5),
+            nn.Linear(in_features=256, out_features=128)
         )
         # pool across the each team dimension (6 players) -> keep channel dim = 128
         self.scene_pool = nn.AdaptiveMaxPool1d(1)
