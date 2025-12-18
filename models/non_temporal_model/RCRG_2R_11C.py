@@ -35,7 +35,7 @@ class RCRG_2R_11C(nn.Module):
         self.scene_pool = nn.AdaptiveMaxPool1d(1)
 
         self.classifier = nn.Sequential(
-            nn.Linear(in_features=128, out_features=128),
+            nn.Linear(in_features=256, out_features=128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Dropout(0.5),
