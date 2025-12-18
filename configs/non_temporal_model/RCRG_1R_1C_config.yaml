@@ -56,7 +56,7 @@ training:
   scheduler_min_lr: 1e-5
 
   group_activity:
-    num_epochs: 10
+    num_epochs: 8
     learning_rate: 5e-4
     weight_decay: 0.01
     label_smoothing: 0.1
