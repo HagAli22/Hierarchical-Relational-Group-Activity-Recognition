@@ -10,9 +10,9 @@ import torchvision.models as models
 
 
 
-class RCRG_1R_1C(nn.Module):
+class RCRG_1R_1C_no_tuned(nn.Module):
     def __init__(self, num_classes=8, feature_dim=2048):
-        super(RCRG_1R_1C, self).__init__()
+        super(RCRG_1R_1C_no_tuned, self).__init__()
 
         self.person_feature_extractor = nn.Sequential(
             *list(models.resnet50(weights=models.ResNet50_Weights.DEFAULT).children())[:-1]

@@ -14,7 +14,7 @@ from albumentations.pytorch import ToTensorV2
 
 from configs.config_loader import load_config
 from data.data_loader import GroupActivityDataset
-from models.non_temporal_model.RCRG_1R_1C import RCRG_1R_1C, collate_group_fn
+from models.non_temporal_model.RCRG_1R_1C_no_tuned import RCRG_1R_1C_no_tuned, collate_group_fn
 from models import Person_Classifer
 from train_utils.ddp_trainer import DDPTrainer, TrainingConfig
 
@@ -32,7 +32,7 @@ NUM_CLASSES = 8
 def create_model():
     """Model factory function - must be defined at module level for multiprocessing."""
 
-    return RCRG_1R_1C(num_classes=NUM_CLASSES)
+    return RCRG_1R_1C_no_tuned(num_classes=NUM_CLASSES)
 
 
 def get_transforms():
