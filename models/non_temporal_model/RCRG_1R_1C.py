@@ -17,17 +17,17 @@ class RCRG_1R_1C(nn.Module):
             param.requires_grad = False  # Freeze person feature extractor
             
         self.shared = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(in_features=feature_dim * 2, out_features=256),
+            nn.Linear(in_features=feature_dim * 2, out_features=512),
+            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(in_features=256, out_features=128)
+            nn.Linear(in_features=512, out_features=128)
         )
         # pool across the each team dimension (6 players) -> keep channel dim = 128
         self.scene_pool = nn.AdaptiveMaxPool1d(1)
 
         self.classifier = nn.Sequential(
-            nn.Linear(in_features=128, out_features=128),
+            nn.Linear(in_features=256, out_features=128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Dropout(0.5),
@@ -69,10 +69,16 @@ class RCRG_1R_1C(nn.Module):
 
         # Now pool over all persons to get scene-level feature
         relational_features = relational_features.permute(0, 2, 1)  # (B,128,12)
-        scene_feature = self.scene_pool(relational_features)  # (B,128,1)
-        scene_feature = scene_feature.squeeze(-1)  # (B,128)
 
-        out = self.classifier(scene_feature)  # (B, num_classes)
+        team1 = relational_features[:, :, :6]  # (B, 128, 6)
+        team2 = relational_features[:, :, 6:]  # (B, 128, 6)
+
+        team1 = self.scene_pool(team1).squeeze(-1)  # (B, 128)
+        team2 = self.scene_pool(team2).squeeze(-1)  # (B, 128)
+
+        x = torch.cat([team1, team2], dim=1)  # (B, 256)
+
+        out = self.classifier(x)  # (B, num_classes)
         return out
 
 
