@@ -1,18 +1,22 @@
 """
-RCRG-1R-1C Model
+RCRG-1R-1C-no_tuned Model
 ====================
-Relational model with 1 Relational layer and 1 Clique for group activity recognition.
+Same as RCRG-1R-1C model with 1 Relational layer and 1 Clique for group activity recognition but ImageNet-pretrained ResNet50 without fine-tuning.
 """
 
 import torch
 import torch.nn as nn
+import torchvision.models as models
+
 
 
 class RCRG_1R_1C(nn.Module):
-    def __init__(self, person_classifier, num_classes=8, feature_dim=2048):
+    def __init__(self, num_classes=8, feature_dim=2048):
         super(RCRG_1R_1C, self).__init__()
 
-        self.person_feature_extractor = person_classifier.resnet50
+        self.person_feature_extractor = nn.Sequential(
+            *list(models.resnet50(weights=models.ResNet50_Weights.DEFAULT).children())[:-1]
+        )
         for param in self.person_feature_extractor.parameters():
             param.requires_grad = False  # Freeze person feature extractor
             
