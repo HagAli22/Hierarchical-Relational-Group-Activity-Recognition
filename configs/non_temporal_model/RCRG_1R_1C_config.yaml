@@ -57,9 +57,9 @@ training:
 
   group_activity:
     num_epochs: 2
-    learning_rate: 5e-5
-    weight_decay: 1
-    label_smoothing: 0.05
+    learning_rate: 5e-4
+    weight_decay: 0.01
+    label_smoothing: 0.1
     model_name: "RCRG_1R_1C_best.pth"
     
     optimizer: "adamW"
