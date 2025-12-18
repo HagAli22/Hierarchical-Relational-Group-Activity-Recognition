@@ -307,16 +307,21 @@ class DDPTrainer:
                 # Use test_dataset if provided, otherwise fall back to val_dataset
                 if self.test_dataset is not None:
                     logger.info("Running final evaluation on TEST set...")
-                    test_sampler = DistributedSampler(self.test_dataset, num_replicas=world_size, rank=rank, shuffle=False)
+                    # Don't use DistributedSampler for final eval - use full dataset on rank 0
                     test_loader = DataLoader(
-                        self.test_dataset, batch_size=self.config.batch_size, sampler=test_sampler,
+                        self.test_dataset, batch_size=self.config.batch_size, shuffle=False,
                         collate_fn=self.collate_fn,
-                        #pin_memory=self.config.pin_memory, num_workers=self.config.num_workers
+                        pin_memory=self.config.pin_memory, num_workers=self.config.num_workers
                     )
                     eval_loader = test_loader
                 else:
                     logger.info("Running final evaluation on VALIDATION set...")
-                    eval_loader = val_loader
+                    # Create new val_loader without DistributedSampler for full evaluation
+                    eval_loader = DataLoader(
+                        self.val_dataset, batch_size=self.config.batch_size, shuffle=False,
+                        collate_fn=self.collate_fn,
+                        pin_memory=self.config.pin_memory, num_workers=self.config.num_workers
+                    )
                 
                 generate_evaluation_report(
                     model, eval_loader, criterion, device, log_dir,

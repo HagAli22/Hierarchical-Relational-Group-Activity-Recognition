@@ -17,7 +17,7 @@ from data.data_loader import GroupActivityDataset
 from models.non_temporal_model.RCRG_1R_1C import RCRG_1R_1C, collate_group_fn
 from models import Person_Classifer
 from train_utils.ddp_trainer import DDPTrainer, TrainingConfig
-
+#mos
 
 CONFIG_PATH = "configs/non_temporal_model/RCRG_1R_1C_config.yaml"
 
