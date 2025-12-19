@@ -20,15 +20,15 @@ class RCRG_2R_11C_conc(nn.Module):
         self.relation_layer1 = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(in_features=feature_dim * 2, out_features=256),
-            nn.BatchNorm1d(256),
-            nn.ReLU()
+            # nn.BatchNorm1d(256),
+            # nn.ReLU()
         )
         
         # Second relational layer: 512 -> 128
         self.relation_layer2 = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(in_features=256 * 2, out_features=128),
-            nn.ReLU()
+            # nn.ReLU()
         )
 
         self.classifier = nn.Sequential(
