@@ -28,7 +28,7 @@ class RCRG_2R_11C(nn.Module):
         self.relation_layer2 = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(in_features=256 * 2, out_features=128),
-            nn.ReLU()
+            #nn.ReLU()
         )
 
         # Pool across all persons
