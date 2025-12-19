@@ -45,14 +45,14 @@ model:
 # Training configuration
 training:
   use_scheduler: true
-  scheduler_type: "cosine"
+  scheduler_type: "reduce_on_plateau"
   scheduler_patience: 5
   scheduler_factor: 0.1
   scheduler_min_lr: 1e-5
 
   group_activity:
     num_epochs: 15
-    learning_rate: 8e-4
+    learning_rate: 5e-5
     weight_decay: 0.01
     label_smoothing: 0.1
     model_name: "RCRG_2R_11C_conc_best.pth"
