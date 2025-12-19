@@ -49,8 +49,16 @@ def get_transforms():
     train_transform = albu.Compose([
         albu.Resize(224, 224),
         albu.HorizontalFlip(p=0.5),
-        albu.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.1, rotate_limit=10, p=0.3),
-        albu.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, p=0.3),
+        albu.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.15, rotate_limit=15, p=0.5),
+        albu.OneOf([
+            albu.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2),
+            albu.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3),
+        ], p=0.5),
+        albu.OneOf([
+            albu.GaussianBlur(blur_limit=(3, 5)),
+            albu.GaussNoise(var_limit=(10, 30)),
+        ], p=0.3),
+        albu.CoarseDropout(max_holes=8, max_height=20, max_width=20, p=0.3),
         albu.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2()
     ])
