@@ -1,7 +1,7 @@
 # RCRG-2R-11C Configuration
-# Description: Relational model with 2 Relational layers (256, 128) and 1 Clique (all 12 players)
+# Description: Relational model with 2 Relational layers (256, 128) and 1 Clique (all 12 players) using concatenation.
 
-experiment_name: "RCRG_2R_11C"
+experiment_name: "RCRG_2R_11C_conc"
 description: "Stage 2: 2-layer relational reasoning between all player pairs."
 seed: 42
 
@@ -55,7 +55,7 @@ training:
     learning_rate: 8e-4
     weight_decay: 0.01
     label_smoothing: 0.1
-    model_name: "RCRG_2R_11C_best.pth"
+    model_name: "RCRG_2R_11C_conc_best.pth"
 
     optimizer: "adamW"
 
@@ -68,7 +68,7 @@ training:
     resume_from_checkpoint: false
     checkpoint_path: ""
 
-    checkpoint_dir: "checkpoints/RCRG_2R_11C"
+    checkpoint_dir: "checkpoints/RCRG_2R_11C_conc"
     save_best_model: true
     save_every_n_epochs: 2
 
