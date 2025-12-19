@@ -52,7 +52,7 @@ training:
 
   group_activity:
     num_epochs: 15
-    learning_rate: 5e-4
+    learning_rate: 8e-4
     weight_decay: 0.01
     label_smoothing: 0.1
     model_name: "RCRG_2R_11C_conc_best.pth"
