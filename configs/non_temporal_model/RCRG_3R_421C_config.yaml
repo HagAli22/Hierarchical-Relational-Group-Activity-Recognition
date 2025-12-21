@@ -46,7 +46,7 @@ model:
 # Training configuration
 training:
   use_scheduler: true
-  scheduler_type: "cosine"
+  scheduler_type: "reduce_on_plateau"
   scheduler_patience: 3
   scheduler_factor: 0.1
   scheduler_min_lr: 1e-6
@@ -54,7 +54,7 @@ training:
   group_activity:
     num_epochs: 10
     learning_rate: 8e-5
-    weight_decay: 0.1
+    weight_decay: 0.05
     label_smoothing: 0.1
     model_name: "RCRG_3R_421C_best.pth"
 
