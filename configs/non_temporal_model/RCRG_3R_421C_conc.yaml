@@ -53,8 +53,8 @@ training:
   scheduler_min_lr: 1e-6
 
   group_activity:
-    num_epochs: 10
-    learning_rate: 8e-4
+    num_epochs: 20
+    learning_rate: 1e-4
     weight_decay: 0.1
     label_smoothing: 0.1
     model_name: "RCRG_3R_421C_conc_best.pth"
