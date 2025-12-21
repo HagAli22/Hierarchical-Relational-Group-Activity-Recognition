@@ -43,8 +43,8 @@ class RelationalGNNLayer1(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(1024, out_dim),
-            # nn.ReLU()
         )
+        self.out_dim = out_dim
 
     def forward(self, x, adj):
         """
@@ -61,7 +61,10 @@ class RelationalGNNLayer1(nn.Module):
             Pj.expand(-1, K, K, -1)
         ], dim=-1)                 # (B,K,K,2D)
 
-        messages = self.mlp(pairs) # (B,K,K,D_out)
+        # Reshape for BatchNorm: (B*K*K, 2D)
+        pairs_flat = pairs.view(B * K * K, -1)
+        messages_flat = self.mlp(pairs_flat)  # (B*K*K, D_out)
+        messages = messages_flat.view(B, K, K, self.out_dim)  # (B,K,K,D_out)
 
         mask = adj.view(1, K, K, 1).to(x.device)
         messages = messages * mask
