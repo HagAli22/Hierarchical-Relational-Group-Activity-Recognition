@@ -7,7 +7,7 @@ Layer 1: 4 cliques (3 players each), Layer 2: 2 cliques (teams), Layer 3: 1 cliq
 
 import torch
 import torch.nn as nn
-from models.non_temporal_model.RelationalGNNLayer import clique_adjacency, RelationalGNNLayer
+from models.non_temporal_model.RelationalGNNLayer import clique_adjacency, RelationalGNNLayer,RelationalGNNLayer1
 
 
 class RCRG_3R_421C(nn.Module):
@@ -19,7 +19,7 @@ class RCRG_3R_421C(nn.Module):
             param.requires_grad = False  # Freeze person feature extractor
 
         # First relational layer: 4096 -> 512
-        self.relation_layer1 = RelationalGNNLayer(in_dim=feature_dim, out_dim=512)
+        self.relation_layer1 = RelationalGNNLayer1(in_dim=feature_dim, out_dim=512)
         
         # Second relational layer: 1024 -> 256
         self.relation_layer2 = RelationalGNNLayer(in_dim=512, out_dim=256)
