@@ -54,8 +54,8 @@ training:
 
   group_activity:
     num_epochs: 10
-    learning_rate: 5e-4
-    weight_decay: 1
+    learning_rate: 8e-4
+    weight_decay: 0.1
     label_smoothing: 0.1
     model_name: "RCRG_3R_421C_conc_best.pth"
 
