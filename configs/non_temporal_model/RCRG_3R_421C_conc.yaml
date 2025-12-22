@@ -53,16 +53,16 @@ training:
   scheduler_min_lr: 1e-7
 
   group_activity:
-    num_epochs: 30
+    num_epochs: 8
     learning_rate: 5e-5
-    weight_decay: 0.05
+    weight_decay: 1
     label_smoothing: 0.15
     model_name: "RCRG_3R_421C_conc_best.pth"
 
     optimizer: "adamW"
 
     use_early_stopping: true
-    early_stopping_patience: 12
+    early_stopping_patience: 10
     early_stopping_min_delta: 0.0001
 
     person_classifier_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
