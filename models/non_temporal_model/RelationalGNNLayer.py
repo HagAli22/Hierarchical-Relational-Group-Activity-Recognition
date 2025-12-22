@@ -13,9 +13,7 @@ class RelationalGNNLayer(nn.Module):
             nn.Dropout(dropout)
         )
         
-        # Residual projection if dimensions differ
-        self.residual = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
-        self.layer_norm = nn.LayerNorm(out_dim)
+        
 
     def forward(self, x, adj):
         """
@@ -39,8 +37,6 @@ class RelationalGNNLayer(nn.Module):
 
         out = messages.sum(dim=2)  # (B,K,D_out)
         
-        # Residual connection
-        out = self.layer_norm(out + self.residual(x))
         return out
     
 

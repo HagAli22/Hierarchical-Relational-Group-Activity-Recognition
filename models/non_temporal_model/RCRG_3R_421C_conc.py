@@ -23,17 +23,17 @@ class RCRG_3R_421C_conc(nn.Module):
         self.relation_layer1 = RelationalGNNLayer(in_dim=feature_dim, out_dim=512, dropout=0.4)
         
         # Second relational layer: 512 -> 256
-        self.relation_layer2 = RelationalGNNLayer(in_dim=512, out_dim=256, dropout=0.4)
+        self.relation_layer2 = RelationalGNNLayer(in_dim=512, out_dim=256, dropout=0.2)
 
         # Third relational layer: 256 -> 128
-        self.relation_layer3 = RelationalGNNLayer(in_dim=256, out_dim=128, dropout=0.4)
+        self.relation_layer3 = RelationalGNNLayer(in_dim=256, out_dim=128, dropout=0.1)
 
         # Classifier with stronger regularization
         self.classifier = nn.Sequential(
             nn.Linear(in_features=12*128, out_features=512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Dropout(0.6),
+            nn.Dropout(0.5),
             nn.Linear(in_features=512, out_features=num_classes)
         )
 
