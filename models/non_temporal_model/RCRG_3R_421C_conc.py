@@ -19,27 +19,21 @@ class RCRG_3R_421C_conc(nn.Module):
         for param in self.person_feature_extractor.parameters():
             param.requires_grad = False  # Freeze person feature extractor
 
-        # First relational layer: 4096 -> 512
-        self.relation_layer1 = RelationalGNNLayer(in_dim=feature_dim, out_dim=512)
+        # First relational layer: 2048 -> 512
+        self.relation_layer1 = RelationalGNNLayer(in_dim=feature_dim, out_dim=512, dropout=0.4)
         
-        # Second relational layer: 1024 -> 256
-        self.relation_layer2 = RelationalGNNLayer(in_dim=512, out_dim=256)
+        # Second relational layer: 512 -> 256
+        self.relation_layer2 = RelationalGNNLayer(in_dim=512, out_dim=256, dropout=0.4)
 
-        # third relational layer: 512 -> 128
-        self.relation_layer3 = RelationalGNNLayer(in_dim=256, out_dim=128)
+        # Third relational layer: 256 -> 128
+        self.relation_layer3 = RelationalGNNLayer(in_dim=256, out_dim=128, dropout=0.4)
 
-        # Pool across all persons
-        self.scene_pool = nn.AdaptiveMaxPool1d(1)
-
+        # Classifier with stronger regularization
         self.classifier = nn.Sequential(
-            nn.Linear(in_features=12*128, out_features=1024),
-            nn.BatchNorm1d(1024),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(in_features=1024, out_features=512),
+            nn.Linear(in_features=12*128, out_features=512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Dropout(0.5),
+            nn.Dropout(0.6),
             nn.Linear(in_features=512, out_features=num_classes)
         )
 

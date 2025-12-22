@@ -4,12 +4,18 @@ import torch
 import torch.nn as nn
 
 class RelationalGNNLayer(nn.Module):
-    def __init__(self, in_dim, out_dim):
+    def __init__(self, in_dim, out_dim, dropout=0.3):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(2 * in_dim, out_dim),
-            # nn.ReLU()
+            nn.LayerNorm(out_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout)
         )
+        
+        # Residual projection if dimensions differ
+        self.residual = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
+        self.layer_norm = nn.LayerNorm(out_dim)
 
     def forward(self, x, adj):
         """
@@ -32,6 +38,9 @@ class RelationalGNNLayer(nn.Module):
         messages = messages * mask
 
         out = messages.sum(dim=2)  # (B,K,D_out)
+        
+        # Residual connection
+        out = self.layer_norm(out + self.residual(x))
         return out
     
 
