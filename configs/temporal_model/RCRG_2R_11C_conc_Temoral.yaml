@@ -54,10 +54,10 @@ training:
   scheduler_min_lr: 1e-7
 
   group_activity:
-    num_epochs: 1
-    learning_rate: 1e-5
-    weight_decay: 1
-    label_smoothing: 0.01
+    num_epochs: 20
+    learning_rate: 5e-5
+    weight_decay: 0.05
+    label_smoothing: 0.15
     model_name: "RCRG_2R_11C_conc_Temporal_best.pth"
 
     optimizer: "adamW"
