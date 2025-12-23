@@ -40,7 +40,7 @@ model:
     lstm_hidden: 512
     lstm_layers: 2
 
-    batch_size: 16
+    batch_size: 8
     num_workers: 4
     pin_memory: true
     shuffle_train: true
@@ -75,7 +75,7 @@ training:
     save_best_model: true
     save_every_n_epochs: 2
 
-    log_every_n_batches: 50
+    log_every_n_batches: 40
 
     use_amp: true
     device: "auto"
@@ -87,7 +87,7 @@ training:
 
 # Evaluation configuration
 evaluation:
-  batch_size: 16
+  batch_size: 8
   results_root: "reslutes_and_logs"
   save_predictions: true
   save_visualizations: true
