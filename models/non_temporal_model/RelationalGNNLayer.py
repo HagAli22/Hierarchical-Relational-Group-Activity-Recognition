@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 class RelationalGNNLayer(nn.Module):
-    def __init__(self, in_dim, out_dim, dropout=0.3):
+    def __init__(self, in_dim, out_dim, dropout=0.0):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(2 * in_dim, out_dim),
