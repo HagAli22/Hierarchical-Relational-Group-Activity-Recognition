@@ -87,7 +87,7 @@ training:
 
 # Evaluation configuration
 evaluation:
-  batch_size: 16
+  batch_size: 8
   results_root: "reslutes_and_logs"
   save_predictions: true
   save_visualizations: true
