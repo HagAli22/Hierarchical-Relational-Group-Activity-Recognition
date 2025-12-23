@@ -11,7 +11,7 @@ import torch.nn as nn
 
 class RCRG_2R_11C_conc_Temporal(nn.Module):
     def __init__(self, person_classifier, num_classes=8, feature_dim=2048):
-        super(RCRG_2R_11C_conc_Temporal, sel).__init__()
+        super(RCRG_2R_11C_conc_Temporal, self).__init__()
 
         self.person_feature_extractor = person_classifier.resnet50
         for param in self.person_feature_extractor.parameters():
