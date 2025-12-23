@@ -11,7 +11,7 @@ import torch.nn as nn
 
 class RCRG_2R_11C_conc_Temporal(nn.Module):
     def __init__(self, person_classifier, num_classes=8, feature_dim=2048):
-        super(RCRG_2R_11C_conc_Temporal, self).__init__()
+        super(RCRG_2R_11C_conc_Temporal, sel).__init__()
 
         self.person_feature_extractor = person_classifier.resnet50
         for param in self.person_feature_extractor.parameters():
@@ -24,23 +24,23 @@ class RCRG_2R_11C_conc_Temporal(nn.Module):
             nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(in_features=512, out_features=256)
+            nn.Linear(in_features=512, out_features=128)
         )
         
         # Second relational layer: 512 -> 128
         self.relation_layer2 = nn.Sequential(
             #nn.Dropout(0.5),
-            nn.Linear(in_features=2*256, out_features=256),
-            nn.BatchNorm1d(256),
+            nn.Linear(in_features=2*feature_dim, out_features=1024),
+            nn.BatchNorm1d(1024),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(in_features=256, out_features=128)
+            nn.Linear(in_features=1024, out_features=256)
         )
 
         self.hidden_size=512
         self.num_layers=2
 
-        self.lstm =  nn.LSTM(12*128 , self.hidden_size , num_layers=self.num_layers , batch_first = True , dropout = 0.5)
+        self.lstm =  nn.LSTM(12*384 , self.hidden_size , num_layers=self.num_layers , batch_first = True , dropout = 0.5)
 
         self.classifier = nn.Sequential(
             #nn.Dropout(0.5),
@@ -72,36 +72,36 @@ class RCRG_2R_11C_conc_Temporal(nn.Module):
 
         pairs1 = torch.cat([Pi_expanded, Pj_expanded], dim=-1)  # (B*9, 12, 12, 4096)
         pairs1 = pairs1.view(b * t * k * k, -1)  # (B*9*144, 4096)
-        pairs1 = self.relation_layer1(pairs1)  # (B*9*144, 256)
-        pairs1 = pairs1.view(b*t, k, k, -1)  # (B*9, 12, 12, 256)
+        pairs1 = self.relation_layer1(pairs1)  # (B*9*144, 128)
+        pairs1 = pairs1.view(b*t, k, k, -1)  # (B*9, 12, 12, 128)
 
         # Mask self-relations (i == j)
         mask = (1 - torch.eye(k, device=x.device)).view(1, k, k, 1)
-        pairs1 = pairs1 * mask  # (B*9, 12, 12, 256)
+        pairs1 = pairs1 * mask  # (B*9, 12, 12, 128)
 
         # Aggregate: sum over j to get per-person relational features
-        rel_features1 = pairs1.sum(dim=2)  # (B*9, 12, 256)
+        rel_features1 = pairs1.sum(dim=2)  # (B*9, 12, 128)
 
         # ============ Second Relational Layer ============
-        Pi2 = rel_features1.unsqueeze(2)  # (B*9, 12, 1, 256)
-        Pj2 = rel_features1.unsqueeze(1)  # (B*9, 1, 12, 256)
-        Pi2_expanded = Pi2.expand(-1, -1, k, -1)  # (B*9, 12, 12, 256)
-        Pj2_expanded = Pj2.expand(-1, k, -1, -1)  # (B*9, 12, 12, 256)
+        Pi2 = x.unsqueeze(2)  # (B*9, 12, 1, 2048)
+        Pj2 = x.unsqueeze(1)  # (B*9, 1, 12, 2048)
+        Pi2_expanded = Pi2.expand(-1, -1, k, -1)  # (B*9, 12, 12, 2048)
+        Pj2_expanded = Pj2.expand(-1, k, -1, -1)  # (B*9, 12, 12, 2048)
 
         pairs2 = torch.cat([Pi2_expanded, Pj2_expanded], dim=-1)  # (B*9, 12, 12, 512)
         pairs2 = pairs2.view(b * t * k * k, -1)  # (B*9*144, 512)
-        pairs2 = self.relation_layer2(pairs2)  # (B*9*144, 128)
-        pairs2 = pairs2.view(b*t, k, k, -1)  # (B*9, 12, 12, 128)
+        pairs2 = self.relation_layer2(pairs2)  # (B*9*144, 256)
+        pairs2 = pairs2.view(b*t, k, k, -1)  # (B*9, 12, 12, 256)
 
         # Mask self-relations
         pairs2 = pairs2 * mask  # (B*9, 12, 12, 256)
 
         # Aggregate: sum over j
-        rel_features2 = pairs2.sum(dim=2)  # (B*9, 12, 128)
+        rel_features2 = pairs2.sum(dim=2)  # (B*9, 12, 256)
 
         # ============ Scene-level concatenation ============
-        #x = torch.cat([rel_features1, rel_features2], dim=-1)  # (B*9, 12, 128)
-        x = rel_features2.view(b , t , -1)  # (B, 9 , 12*128)
+        x = torch.cat([rel_features1, rel_features2], dim=-1)  # (B*9, 12, 384)
+        x = x.view(b , t , -1)  # (B, 9 , 12*384)
 
         x= self.lstm(x) # returns (output, (h_n, c_n))
         x = x[0][:, -1, :]  # Take last timestep: (B, 512)

@@ -49,15 +49,15 @@ model:
 training:
   use_scheduler: true
   scheduler_type: "reduce_on_plateau"
-  scheduler_patience: 3
-  scheduler_factor: 0.1
-  scheduler_min_lr: 1e-6
+  scheduler_patience: 5
+  scheduler_factor: 0.5
+  scheduler_min_lr: 1e-7
 
   group_activity:
-    num_epochs: 20
-    learning_rate: 1e-5
-    weight_decay: 1
-    label_smoothing: 0.01
+    num_epochs: 35
+    learning_rate: 2.5e-5
+    weight_decay: 0.05
+    label_smoothing: 0.15
     model_name: "RCRG_2R_11C_conc_Temporal_best.pth"
 
     optimizer: "adamW"
@@ -68,8 +68,8 @@ training:
 
     person_classifier_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
 
-    resume_from_checkpoint: false
-    checkpoint_path: ""
+    resume_from_checkpoint: true
+    checkpoint_path: "/kaggle/input/fork-of-rcrg-3r-421c-5f5159/results/RCRG_2R_11C_conc_Temporal/RCRG_2R_11C_conc_Temporal_best/20251223_104351/checkpoints/checkpoint_epoch_18.pth"
 
     checkpoint_dir: "checkpoints/RCRG_2R_11C_conc_Temporal"
     save_best_model: true
