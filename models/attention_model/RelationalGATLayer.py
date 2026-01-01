@@ -143,7 +143,7 @@ class RelationalGATLayer(nn.Module):
         return entropy.mean()
 
 
-def attention_entropy_loss(attention_weights, lambda_entropy=0.01):
+def attention_entropy_loss(attention_weights, lambda_entropy=0.005):
     """
     Compute attention entropy regularization loss.
     Encourages diverse attention patterns (prevents collapse to single node).
