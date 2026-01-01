@@ -263,11 +263,6 @@ class DDPTrainer:
                 if old_lr != new_lr:
                     logger.info(f"Learning rate reduced from {old_lr:.6f} to {new_lr:.6f}")
                 
-                # Save checkpoint
-                if (epoch + 1) % self.config.save_every_n_epochs == 0:
-                    self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir, scheduler, scaler)
-                    logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
-                
                 # Epoch summary
                 logger.info(f"Epoch {epoch+1}/{self.config.num_epochs} Results:")
                 logger.info(f"  Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
@@ -280,12 +275,15 @@ class DDPTrainer:
                 writer.add_scalars('Accuracy', {'train': train_acc, 'val': val_acc}, epoch)
                 writer.add_scalar('Learning_Rate', new_lr, epoch)
                 
-                # Save best model
+                # Save best model and checkpoint only when best model is found
                 if avg_val_loss < best_val_loss:
                     best_val_loss = avg_val_loss
                     self._save_best_model(model, checkpoint_dir)
+                    self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir, scheduler, scaler)
                     logger.info(f"New best model saved with validation loss: {best_val_loss:.4f}")
                     logger.info(f"Best model saved to: {checkpoint_dir}/{self.config.model_name}")
+                    logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
+                    logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
             
             if early_stopping and rank == 0 and early_stopping(avg_val_loss):
                 logger.info("Early stopping triggered!")
