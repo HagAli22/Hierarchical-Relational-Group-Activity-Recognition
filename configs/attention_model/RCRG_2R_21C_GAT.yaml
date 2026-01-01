@@ -34,11 +34,15 @@ model:
     num_classes: 8
     class_names: ["l-pass", "r-pass", "l-spike", "r_spike", "l_set", "r_set", "l_winpoint", "r_winpoint"]
 
-    # Architecture params
+    # GAT Architecture params
     num_relations: 2
     num_cliques: [2, 1]
     hidden_sizes: [256, 128]
-    attention_dropout: 0.4
+    num_heads: 2
+    attention_combine: "average"
+    lambda_entropy: 0.01
+    dropout_gat1: 0.4
+    dropout_gat2: 0.1
 
     batch_size: 64
     num_workers: 4

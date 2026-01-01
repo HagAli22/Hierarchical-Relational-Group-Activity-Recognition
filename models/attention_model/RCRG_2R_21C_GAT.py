@@ -1,31 +1,48 @@
 """
 RCRG-2R-21C-GAT Model
 ======================
-Relational model with 2 Graph Attention layers (2R) and 2+1 Cliques (21C).
-Layer 1: 2 cliques (teams) with attention
-Layer 2: 1 clique (all players) with attention
+Relational model with 2 Multi-Head Graph Attention layers (2R) and 2+1 Cliques (21C).
+Layer 1: 2 cliques (teams) with 2-head attention
+Layer 2: 1 clique (all players) with 2-head attention
 
-Uses single-head GAT instead of simple message passing.
+Features:
+- Multi-Head GAT (2 heads) with averaging
+- Attention Entropy Regularization (λ=0.01)
 """
 
 import torch
 import torch.nn as nn
-from models.attention_model.RelationalGATLayer import RelationalGATLayer, clique_adjacency
+from models.attention_model.RelationalGATLayer import (
+    RelationalGATLayer, 
+    clique_adjacency, 
+    attention_entropy_loss
+)
 
 
 class RCRG_2R_21C_GAT(nn.Module):
-    def __init__(self, person_classifier, num_classes=8, feature_dim=2048):
+    def __init__(self, person_classifier, num_classes=8, feature_dim=2048, 
+                 num_heads=2, lambda_entropy=0.01):
         super(RCRG_2R_21C_GAT, self).__init__()
 
+        self.lambda_entropy = lambda_entropy
+        
         self.person_feature_extractor = person_classifier.resnet50
         for param in self.person_feature_extractor.parameters():
             param.requires_grad = False  # Freeze person feature extractor
 
         # First GAT layer: 2048 -> 256 (2 cliques - teams)
-        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=256, dropout=0.4)
+        # Higher dropout (0.4) for first layer
+        self.gat_layer1 = RelationalGATLayer(
+            in_dim=feature_dim, out_dim=256, 
+            num_heads=num_heads, dropout=0.4
+        )
         
         # Second GAT layer: 256 -> 128 (1 clique - all players)
-        self.gat_layer2 = RelationalGATLayer(in_dim=256, out_dim=128, dropout=0.1)
+        # Lower dropout (0.1) for second layer
+        self.gat_layer2 = RelationalGATLayer(
+            in_dim=256, out_dim=128, 
+            num_heads=num_heads, dropout=0.1
+        )
 
         # Pool across team members
         self.scene_pool = nn.AdaptiveMaxPool1d(1)
@@ -35,7 +52,7 @@ class RCRG_2R_21C_GAT(nn.Module):
             nn.Linear(in_features=256, out_features=256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(in_features=256, out_features=num_classes)
         )
         
@@ -53,6 +70,7 @@ class RCRG_2R_21C_GAT(nn.Module):
             
         Returns:
             out: Class logits (B, num_classes)
+            entropy_loss: Attention entropy regularization loss
             attention_weights: (optional) Dict with attention weights from each layer
         """
         b, k, t, c, h, w = x.size()
@@ -64,16 +82,15 @@ class RCRG_2R_21C_GAT(nn.Module):
         x = x.view(b, k, -1)  # (B, 12, 2048)
 
         # First GAT layer: team-level attention (2 cliques)
-        if return_attention:
-            x, attn1 = self.gat_layer1(x, self.adj1, return_attention=True)
-        else:
-            x = self.gat_layer1(x, self.adj1)  # (B, 12, 256)
+        x, attn1 = self.gat_layer1(x, self.adj1, return_attention=True)  # (B, 12, 256)
 
         # Second GAT layer: scene-level attention (1 clique)
-        if return_attention:
-            x, attn2 = self.gat_layer2(x, self.adj2, return_attention=True)
-        else:
-            x = self.gat_layer2(x, self.adj2)  # (B, 12, 128)
+        x, attn2 = self.gat_layer2(x, self.adj2, return_attention=True)  # (B, 12, 128)
+        
+        # Compute attention entropy loss for regularization
+        entropy_loss1 = attention_entropy_loss(attn1, self.lambda_entropy)
+        entropy_loss2 = attention_entropy_loss(attn2, self.lambda_entropy)
+        total_entropy_loss = entropy_loss1 + entropy_loss2
         
         # Pool teams separately then concatenate
         x = x.permute(0, 2, 1)  # (B, 128, 12)
@@ -88,8 +105,8 @@ class RCRG_2R_21C_GAT(nn.Module):
         out = self.classifier(x)  # (B, num_classes)
         
         if return_attention:
-            return out, {'layer1': attn1, 'layer2': attn2}
-        return out
+            return out, total_entropy_loss, {'layer1': attn1, 'layer2': attn2}
+        return out, total_entropy_loss
 
 
 def collate_group_fn(batch):
