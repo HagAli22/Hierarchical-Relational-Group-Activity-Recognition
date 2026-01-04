@@ -22,10 +22,10 @@ class RCRG_2R_21C_GAT(nn.Module):
             param.requires_grad = False  # Freeze person feature extractor
 
         # First GAT layer: 2048 -> 256 (2 cliques - teams)
-        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=256, dropout=0.4)
+        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=256, dropout=0.5)
         
         # Second GAT layer: 256 -> 128 (1 clique - all players)
-        self.gat_layer2 = RelationalGATLayer(in_dim=256, out_dim=128, dropout=0.1)
+        self.gat_layer2 = RelationalGATLayer(in_dim=256, out_dim=128, dropout=0.3)
 
         # Pool across team members
         self.scene_pool = nn.AdaptiveMaxPool1d(1)
@@ -35,7 +35,7 @@ class RCRG_2R_21C_GAT(nn.Module):
             nn.Linear(in_features=256, out_features=256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(in_features=256, out_features=num_classes)
         )
         
