@@ -1,9 +1,9 @@
 """
 RCRG-2R-21C-GAT Training Script
 ================================
-Multi-Head Graph Attention Network with 2 GAT layers and 2+1 Cliques.
-- 2 attention heads with averaging
-- Attention Entropy Regularization (λ=0.01)
+Graph Attention Network with 2 GAT layers and 2+1 Cliques.
+Layer 1: 2 cliques (teams) with attention
+Layer 2: 1 clique (all players) with attention
 """
 
 import os
@@ -18,8 +18,7 @@ from configs.config_loader import load_config
 from data.data_loader import GroupActivityDataset
 from models.attention_model.RCRG_2R_21C_GAT import RCRG_2R_21C_GAT, collate_group_fn
 from models import Person_Classifer
-from train_all_models.attention_model.gat_trainer import GATTrainer
-from train_utils.ddp_trainer import TrainingConfig
+from train_utils.ddp_trainer import DDPTrainer, TrainingConfig
 
 
 CONFIG_PATH = "configs/attention_model/RCRG_2R_21C_GAT.yaml"
@@ -30,8 +29,6 @@ KAGGLE_OUTPUT = "/kaggle/working" if IS_KAGGLE else "."
 
 # Global variables for model creation
 NUM_CLASSES = 8
-NUM_HEADS = 2
-LAMBDA_ENTROPY = 0.01
 PERSON_CLASSIFIER_PATH = "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
 
 
@@ -46,12 +43,7 @@ def create_model():
     else:
         person_model.load_state_dict(person_checkpoint)
 
-    return RCRG_2R_21C_GAT(
-        person_model, 
-        num_classes=NUM_CLASSES,
-        num_heads=NUM_HEADS,
-        lambda_entropy=LAMBDA_ENTROPY
-    )
+    return RCRG_2R_21C_GAT(person_model, num_classes=NUM_CLASSES)
 
 
 def get_transforms():
@@ -78,15 +70,13 @@ def get_transforms():
 
 
 def main():
-    global NUM_CLASSES, PERSON_CLASSIFIER_PATH, NUM_HEADS, LAMBDA_ENTROPY
+    global NUM_CLASSES, PERSON_CLASSIFIER_PATH
 
     print("Loading RCRG_2R_21C_GAT Configuration...")
     config = load_config(CONFIG_PATH)
 
     NUM_CLASSES = config.model.group_activity.num_classes
     PERSON_CLASSIFIER_PATH = config.training.group_activity.person_classifier_path
-    NUM_HEADS = getattr(config.model.group_activity, 'num_heads', 2)
-    LAMBDA_ENTROPY = getattr(config.model.group_activity, 'lambda_entropy', 0.01)
 
     train_transform, val_transform = get_transforms()
 
@@ -122,7 +112,7 @@ def main():
         batch_size=config.model.group_activity.batch_size,
         learning_rate=config.training.group_activity.learning_rate,
         weight_decay=config.training.group_activity.weight_decay,
-        label_smoothing=getattr(config.training.group_activity, 'label_smoothing', 0.05),
+        label_smoothing=getattr(config.training.group_activity, 'label_smoothing', 0.0),
         optimizer=config.training.group_activity.optimizer,
         use_scheduler=getattr(config.training, 'use_scheduler', True),
         scheduler_type=getattr(config.training, 'scheduler_type', 'reduce_on_plateau'),
@@ -140,8 +130,7 @@ def main():
         class_names=getattr(config.model.group_activity, 'class_names', None),
     )
 
-    # Use custom GAT trainer with entropy loss support
-    trainer = GATTrainer(
+    trainer = DDPTrainer(
         model_fn=create_model,
         train_dataset=train_dataset,
         val_dataset=val_dataset,

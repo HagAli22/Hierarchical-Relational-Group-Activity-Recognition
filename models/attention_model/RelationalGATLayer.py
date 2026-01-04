@@ -1,8 +1,8 @@
 """
-Relational Graph Attention Layer (Multi-Head GAT)
-==================================================
-Implements multi-head attention mechanism for relational reasoning between players.
-Supports attention entropy regularization to prevent attention collapse.
+Relational Graph Attention Layer (Single-Head GAT)
+===================================================
+Implements attention mechanism for relational reasoning between players.
+Instead of treating all neighbors equally, learns attention weights.
 """
 
 import torch
@@ -12,26 +12,23 @@ import torch.nn.functional as F
 
 class RelationalGATLayer(nn.Module):
     """
-    Multi-Head Graph Attention Layer for relational reasoning.
+    Single-head Graph Attention Layer for relational reasoning.
     
-    Uses 2 attention heads with averaging (not concat) for stability.
-    Supports attention entropy regularization.
+    Computes attention weights between player pairs based on their features,
+    then aggregates neighbor features weighted by attention scores.
     """
     
-    def __init__(self, in_dim, out_dim, num_heads=2, dropout=0.3, negative_slope=0.2):
+    def __init__(self, in_dim, out_dim, dropout=0.3, negative_slope=0.2):
         super().__init__()
         
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.num_heads = num_heads
         
-        # Linear transformation for features (shared across heads)
+        # Linear transformation for features
         self.W = nn.Linear(in_dim, out_dim, bias=False)
         
-        # Separate attention mechanisms for each head
-        self.attentions = nn.ModuleList([
-            nn.Linear(2 * out_dim, 1, bias=False) for _ in range(num_heads)
-        ])
+        # Attention mechanism: a^T [Wh_i || Wh_j]
+        self.attention = nn.Linear(2 * out_dim, 1, bias=False)
         
         # LeakyReLU for attention scores
         self.leaky_relu = nn.LeakyReLU(negative_slope)
@@ -50,12 +47,11 @@ class RelationalGATLayer(nn.Module):
     def _init_weights(self):
         """Initialize weights using Xavier initialization."""
         nn.init.xavier_uniform_(self.W.weight)
-        for attn in self.attentions:
-            nn.init.xavier_uniform_(attn.weight)
+        nn.init.xavier_uniform_(self.attention.weight)
     
     def forward(self, x, adj, return_attention=False):
         """
-        Forward pass with multi-head attention mechanism.
+        Forward pass with attention mechanism.
         
         Args:
             x: Node features (B, K, in_dim)
@@ -64,7 +60,7 @@ class RelationalGATLayer(nn.Module):
             
         Returns:
             out: Updated node features (B, K, out_dim)
-            attention_weights: (optional) Attention weights (B, num_heads, K, K)
+            attention_weights: (optional) Attention weights (B, K, K)
         """
         B, K, _ = x.shape
         device = x.device
@@ -73,98 +69,44 @@ class RelationalGATLayer(nn.Module):
         h = self.W(x)
         
         # Prepare for attention computation
-        h_i = h.unsqueeze(2).expand(-1, -1, K, -1)  # (B, K, K, out_dim)
-        h_j = h.unsqueeze(1).expand(-1, K, -1, -1)  # (B, K, K, out_dim)
+        # h_i: (B, K, 1, out_dim) -> (B, K, K, out_dim)
+        h_i = h.unsqueeze(2).expand(-1, -1, K, -1)
+        # h_j: (B, 1, K, out_dim) -> (B, K, K, out_dim)
+        h_j = h.unsqueeze(1).expand(-1, K, -1, -1)
         
         # Concatenate pairs: (B, K, K, 2*out_dim)
         pairs = torch.cat([h_i, h_j], dim=-1)
         
-        # Mask based on adjacency matrix
+        # Compute attention scores: (B, K, K, 1) -> (B, K, K)
+        e = self.attention(pairs).squeeze(-1)
+        e = self.leaky_relu(e)
+        
+        # Mask attention scores based on adjacency matrix
+        # adj: (K, K) -> (1, K, K)
         adj = adj.to(device)
-        mask = adj.unsqueeze(0)  # (1, K, K)
+        mask = adj.unsqueeze(0)
         
-        # Compute attention for each head
-        all_attention_weights = []
-        head_outputs = []
+        # Set non-neighbors to -inf so softmax gives 0
+        e = e.masked_fill(mask == 0, float('-inf'))
         
-        for head_idx, attn_layer in enumerate(self.attentions):
-            # Compute attention scores: (B, K, K)
-            e = attn_layer(pairs).squeeze(-1)
-            e = self.leaky_relu(e)
-            
-            # Mask non-neighbors
-            e = e.masked_fill(mask == 0, float('-inf'))
-            
-            # Softmax over neighbors
-            attention_weights = F.softmax(e, dim=-1)
-            attention_weights = torch.nan_to_num(attention_weights, nan=0.0)
-            
-            # Apply dropout
-            attention_weights_dropped = self.dropout(attention_weights)
-            
-            # Aggregate: (B, K, out_dim)
-            head_out = torch.bmm(attention_weights_dropped, h)
-            head_outputs.append(head_out)
-            all_attention_weights.append(attention_weights)
+        # Softmax over neighbors: (B, K, K)
+        attention_weights = F.softmax(e, dim=-1)
         
-        # Average heads (not concat) for stability
-        out = torch.stack(head_outputs, dim=0).mean(dim=0)  # (B, K, out_dim)
+        # Handle case where a node has no neighbors (all -inf -> nan after softmax)
+        attention_weights = torch.nan_to_num(attention_weights, nan=0.0)
+        
+        # Apply dropout to attention weights
+        attention_weights = self.dropout(attention_weights)
+        
+        # Aggregate neighbor features weighted by attention: (B, K, out_dim)
+        out = torch.bmm(attention_weights, h)
         
         # Residual connection + layer norm
         out = self.layer_norm(out + self.residual(x))
         
         if return_attention:
-            # Stack attention weights: (B, num_heads, K, K)
-            attn_stack = torch.stack(all_attention_weights, dim=1)
-            return out, attn_stack
+            return out, attention_weights
         return out
-    
-    def compute_attention_entropy(self, attention_weights):
-        """
-        Compute entropy of attention weights for regularization.
-        Higher entropy = more uniform attention = better diversity.
-        
-        Args:
-            attention_weights: (B, num_heads, K, K)
-            
-        Returns:
-            entropy: Scalar entropy value (negative for loss minimization)
-        """
-        # Add small epsilon to avoid log(0)
-        eps = 1e-8
-        
-        # Compute entropy: -sum(p * log(p))
-        entropy = -torch.sum(
-            attention_weights * torch.log(attention_weights + eps),
-            dim=-1
-        )  # (B, num_heads, K)
-        
-        # Average over all
-        return entropy.mean()
-
-
-def attention_entropy_loss(attention_weights, lambda_entropy=0.01):
-    """
-    Compute attention entropy regularization loss.
-    Encourages diverse attention patterns (prevents collapse to single node).
-    
-    Args:
-        attention_weights: (B, num_heads, K, K)
-        lambda_entropy: Regularization strength (default: 0.01)
-        
-    Returns:
-        loss: Negative entropy (to maximize entropy via minimization)
-    """
-    eps = 1e-8
-    
-    # Compute entropy
-    entropy = -torch.sum(
-        attention_weights * torch.log(attention_weights + eps),
-        dim=-1
-    )  # (B, num_heads, K)
-    
-    # We want to MAXIMIZE entropy, so return NEGATIVE entropy as loss
-    return -lambda_entropy * entropy.mean()
 
 
 def clique_adjacency(K=12, num_cliques=1):
