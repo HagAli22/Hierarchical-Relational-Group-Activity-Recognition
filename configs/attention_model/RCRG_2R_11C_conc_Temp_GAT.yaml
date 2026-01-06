@@ -58,14 +58,14 @@ training:
 
   group_activity:
     num_epochs: 60
-    learning_rate: 5e-5
-    weight_decay: 0.5
+    learning_rate: 1e-5
+    weight_decay: 1
     label_smoothing: 0.1
     model_name: "RCRG_2R_11C_conc_Temp_GAT_best.pth"
 
     optimizer: "adamW"
 
-    use_early_stopping: true
+    use_early_stopping: False
     early_stopping_patience: 20
     early_stopping_min_delta: 0.0001
 
