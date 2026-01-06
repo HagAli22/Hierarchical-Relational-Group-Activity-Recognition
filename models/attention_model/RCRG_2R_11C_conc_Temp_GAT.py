@@ -94,32 +94,24 @@ class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
         for param in self.person_feature_extractor.parameters():
             param.requires_grad = False  # Freeze person feature extractor
 
-        # First GAT layer: 2048 -> 1024 (all players clique)
-        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=1024, dropout=0.4)
+        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=2048, dropout=0.5)
         
-        # Multi-Head Self-Attention after first GAT
-        self.self_attn1 = MultiHeadSelfAttention(embed_dim=1024, num_heads=4, dropout=0.2)
+        self.self_attn1 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.3)
         
-        # Second GAT layer: 1024 -> 512 (all players clique)
-        self.gat_layer2 = RelationalGATLayer(in_dim=1024, out_dim=512, dropout=0.3)
+        self.gat_layer2 = RelationalGATLayer(in_dim=2048, out_dim=1024, dropout=0.4)
         
-        # Multi-Head Self-Attention after second GAT
-        self.self_attn2 = MultiHeadSelfAttention(embed_dim=512, num_heads=4, dropout=0.2)
+        self.self_attn2 = MultiHeadSelfAttention(embed_dim=1024, num_heads=4, dropout=0.3)
 
-        # LSTM for temporal modeling
+        self.proj = nn.Linear(1024, 512)
+        self.layer_norm1= nn.LayerNorm(512)
+        self.layer_norm2= nn.LayerNorm(512)
+
         self.hidden_size = 512
-        self.num_layers = 2
-        self.lstm = nn.LSTM(12 * 512, self.hidden_size, num_layers=self.num_layers, 
-                           batch_first=True, dropout=0.5)
+        self.lstm = nn.LSTM(1024, self.hidden_size, batch_first=True)
 
-        # Classifier
         self.classifier = nn.Sequential(
-            nn.Linear(in_features=512, out_features=512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(in_features=512, out_features=256),
-            nn.BatchNorm1d(256),
+            nn.Linear(in_features=12*512, out_features=256),
+            nn.LayerNorm(256),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(in_features=256, out_features=num_classes)
@@ -140,43 +132,49 @@ class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
             out: Class logits (B, num_classes)
             attention_weights: (optional) Dict with attention weights from each layer
         """
-        b, k, t, c, h, w = x.size()
-        x = x.view(b * t * k, c, h, w)  # (B*9*12, C, H, W)
+        b, num_people, num_frames, c, h, w = x.size()
+        x = x.view(b * num_frames * num_people, c, h, w)  # (B*9*12, C, H, W)
 
         # Extract person features
         x = self.person_feature_extractor(x)  # (B*9*12, 2048, 1, 1)
-        x = x.view(b * t, k, -1)  # (B*9, 12, 2048)
+        x = x.view(b * num_frames, num_people, -1)  # (B*9, 12, 2048)
 
         # First GAT layer
         if return_attention:
-            x, gat_attn1 = self.gat_layer1(x, self.adj, return_attention=True)
+            r1, gat_attn1 = self.gat_layer1(x, self.adj, return_attention=True)
         else:
-            x = self.gat_layer1(x, self.adj)  # (B*9, 12, 1024)
+            r1 = self.gat_layer1(x, self.adj)  # (B*9, 12, 2048)
         
         # Self-Attention after first GAT
         if return_attention:
-            x, self_attn1 = self.self_attn1(x, return_attention=True)
+            r2, self_attn1 = self.self_attn1(r1, return_attention=True)
         else:
-            x = self.self_attn1(x)  # (B*9, 12, 1024)
+            r2 = self.self_attn1(r1)  # (B*9, 12, 2048)
 
         # Second GAT layer
         if return_attention:
-            x, gat_attn2 = self.gat_layer2(x, self.adj, return_attention=True)
+            r2, gat_attn2 = self.gat_layer2(r1, self.adj, return_attention=True)
         else:
-            x = self.gat_layer2(x, self.adj)  # (B*9, 12, 512)
+            r2 = self.gat_layer2(r1, self.adj)  # (B*9, 12, 1024)
         
         # Self-Attention after second GAT
         if return_attention:
-            x, self_attn2 = self.self_attn2(x, return_attention=True)
+            r2, self_attn2 = self.self_attn2(r2, return_attention=True)
         else:
-            x = self.self_attn2(x)  # (B*9, 12, 512)
+            r2 = self.self_attn2(r2)  # (B*9, 12, 1024)
 
-        # Flatten players and reshape for LSTM
-        x = x.view(b, t, -1)  # (B, 9, 12*512)
+        x = x.view(b*num_people ,num_frames, -1)  # (B*12, 9, 1024)
 
-        # LSTM temporal modeling
-        x, _ = self.lstm(x)  # (B, 9, 512)
-        x = x[:, -1, :]  # Take last timestep: (B, 512)
+        x, _ = self.lstm(x)  # (B*12, 9, 512)
+        x= self.layer_norm1(x) # (B*12, 9, 512)
+
+        r2 = r2[:, -1, :] # (B*12, 1024)
+        x = x[:, -1, :]  # (B*12, 512)
+        
+        r2 = self.proj(r2) #(B*12, 512)
+        x = self.layer_norm2((r2+x)) #(B*9, 512)
+
+        x=x.contiguous().view(B, -1) #(B, 9*512)
 
         out = self.classifier(x)  # (B, num_classes)
         
