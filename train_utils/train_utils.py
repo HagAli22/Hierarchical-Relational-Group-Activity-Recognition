@@ -154,13 +154,15 @@ def create_optimizer(model, optimizer_name: str, lr: float, weight_decay: float,
 
 
 def create_scheduler(optimizer, scheduler_type: str, num_epochs: int, 
-                     patience: int = 5, factor: float = 0.1, min_lr: float = 1e-6):
+                     patience: int = 5, factor: float = 0.1, min_lr: float = 1e-6,
+                     warmup_epochs: int = 0):
     """Create learning rate scheduler based on type."""
     # Ensure numeric types
     num_epochs = int(num_epochs)
     patience = int(patience)
     factor = float(factor)
     min_lr = float(min_lr)
+    warmup_epochs = int(warmup_epochs)
     
     if scheduler_type == 'reduce_on_plateau':
         return torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -170,6 +172,21 @@ def create_scheduler(optimizer, scheduler_type: str, num_epochs: int,
         return torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=num_epochs, eta_min=min_lr
         )
+    elif scheduler_type == 'cosine_with_warmup':
+        # Cosine annealing with linear warmup
+        from torch.optim.lr_scheduler import LambdaLR
+        import math
+        
+        def lr_lambda(current_epoch):
+            if current_epoch < warmup_epochs:
+                # Linear warmup
+                return float(current_epoch + 1) / float(max(1, warmup_epochs))
+            else:
+                # Cosine annealing after warmup
+                progress = float(current_epoch - warmup_epochs) / float(max(1, num_epochs - warmup_epochs))
+                return max(min_lr / optimizer.defaults['lr'], 0.5 * (1.0 + math.cos(math.pi * progress)))
+        
+        return LambdaLR(optimizer, lr_lambda)
     else:  # step
         return torch.optim.lr_scheduler.StepLR(
             optimizer, step_size=patience, gamma=factor

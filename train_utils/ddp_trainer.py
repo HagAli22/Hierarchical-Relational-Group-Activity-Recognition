@@ -51,6 +51,7 @@ class TrainingConfig:
     scheduler_patience: int = 5
     scheduler_factor: float = 0.1
     scheduler_min_lr: float = 1e-6
+    warmup_epochs: int = 0
     
     # AMP settings
     use_amp: bool = True
@@ -165,7 +166,8 @@ class DDPTrainer:
         )
         scheduler = create_scheduler(
             optimizer, self.config.scheduler_type, self.config.num_epochs,
-            self.config.scheduler_patience, self.config.scheduler_factor, self.config.scheduler_min_lr
+            self.config.scheduler_patience, self.config.scheduler_factor, self.config.scheduler_min_lr,
+            self.config.warmup_epochs
         ) if self.config.use_scheduler else None
         
         # Create data loaders
