@@ -141,40 +141,40 @@ class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
 
         # First GAT layer
         if return_attention:
-            r1, gat_attn1 = self.gat_layer1(x, self.adj, return_attention=True)
+            x, gat_attn1 = self.gat_layer1(x, self.adj, return_attention=True)
         else:
-            r1 = self.gat_layer1(x, self.adj)  # (B*9, 12, 2048)
+            x = self.gat_layer1(x, self.adj)  # (B*9, 12, 2048)
         
         # Self-Attention after first GAT
         if return_attention:
-            r2, self_attn1 = self.self_attn1(r1, return_attention=True)
+            x, self_attn1 = self.self_attn1(x, return_attention=True)
         else:
-            r2 = self.self_attn1(r1)  # (B*9, 12, 2048)
+            x = self.self_attn1(x)  # (B*9, 12, 2048)
 
-        # Second GAT layer
+        # Second GAT layer - uses output from self_attn1
         if return_attention:
-            r2, gat_attn2 = self.gat_layer2(r1, self.adj, return_attention=True)
+            x, gat_attn2 = self.gat_layer2(x, self.adj, return_attention=True)
         else:
-            r2 = self.gat_layer2(r1, self.adj)  # (B*9, 12, 1024)
+            x = self.gat_layer2(x, self.adj)  # (B*9, 12, 1024)
         
         # Self-Attention after second GAT
         if return_attention:
-            r2, self_attn2 = self.self_attn2(r2, return_attention=True)
+            x, self_attn2 = self.self_attn2(x, return_attention=True)
         else:
-            r2 = self.self_attn2(r2)  # (B*9, 12, 1024)
+            x = self.self_attn2(x)  # (B*9, 12, 1024)
 
-        r2 = r2.view(b, num_frames, num_people, -1)  # (B, 9, 12, 1024)
-        r2 = r2.permute(0, 2, 1, 3)  # (B, 12, 9, 1024)
-        r2 = r2.contiguous().view(b * num_people, num_frames, -1)  # (B*12, 9, 1024)
+        x = x.view(b, num_frames, num_people, -1)  # (B, 9, 12, 1024)
+        x = x.permute(0, 2, 1, 3)  # (B, 12, 9, 1024)
+        x = x.contiguous().view(b * num_people, num_frames, -1)  # (B*12, 9, 1024)
 
-        x, _ = self.lstm(r2)  # (B*12, 9, 512)
-        x = self.layer_norm1(x)  # (B*12, 9, 512)
+        lstm_out, _ = self.lstm(x)  # (B*12, 9, 512)
+        lstm_out = self.layer_norm1(lstm_out)  # (B*12, 9, 512)
 
-        r2 = r2[:, -1, :]  # (B*12, 1024)
-        x = x[:, -1, :]  # (B*12, 512)
+        x = x[:, -1, :]  # (B*12, 1024)
+        lstm_out = lstm_out[:, -1, :]  # (B*12, 512)
         
-        r2 = self.proj(r2)  # (B*12, 512)
-        x = self.layer_norm2(r2 + x)  # (B*12, 512)
+        x = self.proj(x)  # (B*12, 512)
+        x = self.layer_norm2(x + lstm_out)  # (B*12, 512)
 
         x = x.contiguous().view(b, -1)  # (B, 12*512)
 
