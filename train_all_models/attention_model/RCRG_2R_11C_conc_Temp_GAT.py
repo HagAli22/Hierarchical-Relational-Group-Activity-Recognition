@@ -26,7 +26,7 @@ IS_KAGGLE = '/kaggle' in os.getcwd() or os.path.exists('/kaggle')
 KAGGLE_OUTPUT = "/kaggle/working" if IS_KAGGLE else "."
 
 NUM_CLASSES = 8
-PERSON_CLASSIFIER_PATH = "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
+PERSON_CLASSIFIER_PATH = "/kaggle/working/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
 
 
 def create_model():
@@ -47,9 +47,19 @@ def get_transforms():
     """Get train and validation transforms."""
     train_transform = albu.Compose([
         albu.Resize(224, 224),
-        albu.HorizontalFlip(p=0.5),
-        albu.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.1, rotate_limit=10, p=0.3),
-        albu.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, p=0.3),
+        albu.OneOf([
+            albu.GaussianBlur(blur_limit=(3, 7)),
+            albu.ColorJitter(brightness=0.2),
+            albu.RandomBrightnessContrast(),
+            albu.GaussNoise(),
+            albu.MotionBlur(blur_limit=5), 
+            albu.MedianBlur(blur_limit=5)  
+        ], p=0.75),
+        albu.OneOf([
+            albu.HorizontalFlip(),
+            albu.VerticalFlip(),
+            albu.RandomRotate90()
+        ], p=0.01),
         albu.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2()
     ])
