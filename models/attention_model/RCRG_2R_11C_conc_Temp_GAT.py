@@ -94,30 +94,30 @@ class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
         for param in self.person_feature_extractor.parameters():
             param.requires_grad = False  # Freeze person feature extractor
 
-        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=2048, dropout=0.6)
+        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=2048, dropout=0.3)
         
-        self.self_attn1 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.5)
+        self.self_attn1 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.2)
         
-        self.gat_layer2 = RelationalGATLayer(in_dim=2048, out_dim=2048, dropout=0.6)
+        self.gat_layer2 = RelationalGATLayer(in_dim=2048, out_dim=2048, dropout=0.3)
         
-        self.self_attn2 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.5)
+        self.self_attn2 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.2)
 
         self.proj = nn.Linear(2048, 512)
         self.layer_norm1= nn.LayerNorm(512)
         self.layer_norm2= nn.LayerNorm(512)
         
         # Feature dropout before LSTM
-        self.feature_dropout = nn.Dropout(0.4)
+        self.feature_dropout = nn.Dropout(0.2)
 
         self.hidden_size = 512
-        self.lstm = nn.LSTM(2048, self.hidden_size, batch_first=True, dropout=0.3)
+        self.lstm = nn.LSTM(2048, self.hidden_size, batch_first=True, dropout=0.1)
 
         self.classifier = nn.Sequential(
-            nn.Dropout(0.5),  # Dropout before first linear
+            nn.Dropout(0.3),  # Dropout before first linear
             nn.Linear(in_features=12*512, out_features=256),
             nn.LayerNorm(256),
             nn.GELU(),
-            nn.Dropout(0.5),
+            nn.Dropout(0.3),
             nn.Linear(in_features=256, out_features=num_classes)
         )
         
