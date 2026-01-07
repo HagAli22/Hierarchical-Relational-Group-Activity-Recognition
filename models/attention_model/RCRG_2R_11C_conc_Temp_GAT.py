@@ -94,22 +94,26 @@ class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
         for param in self.person_feature_extractor.parameters():
             param.requires_grad = False  # Freeze person feature extractor
 
-        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=2048, dropout=0.5)
+        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=2048, dropout=0.6)
         
         self.self_attn1 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.5)
         
-        self.gat_layer2 = RelationalGATLayer(in_dim=2048, out_dim=2048, dropout=0.5)
+        self.gat_layer2 = RelationalGATLayer(in_dim=2048, out_dim=2048, dropout=0.6)
         
         self.self_attn2 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.5)
 
         self.proj = nn.Linear(2048, 512)
         self.layer_norm1= nn.LayerNorm(512)
         self.layer_norm2= nn.LayerNorm(512)
+        
+        # Feature dropout before LSTM
+        self.feature_dropout = nn.Dropout(0.4)
 
         self.hidden_size = 512
-        self.lstm = nn.LSTM(2048, self.hidden_size, batch_first=True)
+        self.lstm = nn.LSTM(2048, self.hidden_size, batch_first=True, dropout=0.3)
 
         self.classifier = nn.Sequential(
+            nn.Dropout(0.5),  # Dropout before first linear
             nn.Linear(in_features=12*512, out_features=256),
             nn.LayerNorm(256),
             nn.GELU(),
@@ -166,6 +170,8 @@ class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
         x = x.view(b, num_frames, num_people, -1)  # (B, 9, 12, 2048)
         x = x.permute(0, 2, 1, 3)  # (B, 12, 9, 2048)
         x = x.contiguous().view(b * num_people, num_frames, -1)  # (B*12, 9, 2048)
+        
+        x = self.feature_dropout(x)  # Apply dropout before LSTM
 
         lstm_out, _ = self.lstm(x)  # (B*12, 9, 512)
         lstm_out = self.layer_norm1(lstm_out)  # (B*12, 9, 512)

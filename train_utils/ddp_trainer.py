@@ -11,7 +11,6 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
-from torch.cuda.amp import GradScaler
 from torch import amp
 from torch.utils.tensorboard import SummaryWriter
 from dataclasses import dataclass
@@ -193,7 +192,7 @@ class DDPTrainer:
         
         # Loss, AMP, Early stopping
         criterion = nn.CrossEntropyLoss(label_smoothing=self.config.label_smoothing).to(device)
-        scaler = GradScaler() if self.config.use_amp else None
+        scaler = torch.amp.GradScaler('cuda') if self.config.use_amp else None
         early_stopping = EarlyStopping(
             self.config.early_stopping_patience, self.config.early_stopping_min_delta
         ) if self.config.use_early_stopping else None

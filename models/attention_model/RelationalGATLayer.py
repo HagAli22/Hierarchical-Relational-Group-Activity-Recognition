@@ -39,6 +39,9 @@ class RelationalGATLayer(nn.Module):
         # Layer normalization for output
         self.layer_norm = nn.LayerNorm(out_dim)
         
+        # Residual projection if dimensions differ
+        self.residual = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
+        
         self._init_weights()
     
     def _init_weights(self):
@@ -99,7 +102,7 @@ class RelationalGATLayer(nn.Module):
         out = torch.bmm(attention_weights, h)
         
         # Residual connection + layer norm
-        out = self.layer_norm(out)
+        out = self.layer_norm(out + self.residual(x))
         
         if return_attention:
             return out, attention_weights

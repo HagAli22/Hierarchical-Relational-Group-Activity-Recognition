@@ -52,22 +52,22 @@ model:
 training:
   use_scheduler: true
   scheduler_type: "cosine_with_warmup"
-  warmup_epochs: 25
-  scheduler_patience: 3
-  scheduler_factor: 0.1
-  scheduler_min_lr: 1e-6
+  warmup_epochs: 5  # Reduced from 25 - warmup should be short
+  scheduler_patience: 5
+  scheduler_factor: 0.5
+  scheduler_min_lr: 1e-7
 
   group_activity:
-    num_epochs: 60
-    learning_rate: 1e-5
-    weight_decay: 1
-    label_smoothing: 0.1
+    num_epochs: 100  # More epochs with proper regularization
+    learning_rate: 5e-5  # Slightly higher initial LR
+    weight_decay: 0.05  # Fixed! Was 1 (way too high)
+    label_smoothing: 0.15  # Slightly more smoothing helps generalization
     model_name: "RCRG_2R_11C_conc_Temp_GAT_best.pth"
 
     optimizer: "adamW"
 
-    use_early_stopping: false
-    early_stopping_patience: 20
+    use_early_stopping: True  # Enable early stopping
+    early_stopping_patience: 15
     early_stopping_min_delta: 0.0001
 
     person_classifier_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
