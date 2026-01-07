@@ -89,14 +89,14 @@ class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
             in_channels=feature_dim,
             out_channels=feature_dim,
             num_heads=4,
-            dropout_rate=0.5
+            dropout_rate=0.3
         )
         
         self.gra2 = GraphRelationalAttention(
             in_channels=feature_dim,
             out_channels=feature_dim,
             num_heads=4,
-            dropout_rate=0.5
+            dropout_rate=0.2
         )
         
         self.proj_layer = nn.Linear(2048, 512)
@@ -106,14 +106,20 @@ class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
         self.temporal_lstm = nn.LSTM(
             input_size=2048,
             hidden_size=512,
-            batch_first=True
+            num_layers=2,
+            batch_first=True,
+            dropout=0.3
         )
         
         self.classifier = nn.Sequential(
-            nn.Linear(12 * 512, 256),
+            nn.Linear(12 * 512, 512),
+            nn.LayerNorm(512),
+            nn.GELU(),
+            nn.Dropout(0.3),
+            nn.Linear(512, 256),
             nn.LayerNorm(256),
             nn.GELU(),
-            nn.Dropout(0.5),
+            nn.Dropout(0.2),
             nn.Linear(256, num_classes),
         )
         
