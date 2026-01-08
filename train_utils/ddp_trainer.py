@@ -426,9 +426,9 @@ class DDPTrainer:
         checkpoint = torch.load(self.config.checkpoint_path, map_location='cpu')
         
         if hasattr(model, 'module'):
-            model.module.load_state_dict(checkpoint['model_state_dict'])
+            model.module.load_state_dict(checkpoint['model_state_dict'], strict=False)
         else:
-            model.load_state_dict(checkpoint['model_state_dict'])
+            model.load_state_dict(checkpoint['model_state_dict'], strict=False)
         
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         for state in optimizer.state.values():
