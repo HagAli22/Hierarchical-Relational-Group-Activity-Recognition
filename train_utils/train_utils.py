@@ -180,11 +180,11 @@ def create_scheduler(optimizer, scheduler_type: str, num_epochs: int,
         def lr_lambda(current_epoch):
             if current_epoch < warmup_epochs:
                 # Linear warmup
-                return float(current_epoch) / float(max(1, warmup_epochs))
+                return float(current_epoch + 1) / float(max(1, warmup_epochs))
             else:
                 # Cosine annealing after warmup
                 progress = float(current_epoch - warmup_epochs) / float(max(1, num_epochs - warmup_epochs))
-                return max(0, 0.5 * (1.0 + math.cos(math.pi * progress)))
+                return max(min_lr / optimizer.defaults['lr'], 0.5 * (1.0 + math.cos(math.pi * progress)))
         
         return LambdaLR(optimizer, lr_lambda)
     else:  # step

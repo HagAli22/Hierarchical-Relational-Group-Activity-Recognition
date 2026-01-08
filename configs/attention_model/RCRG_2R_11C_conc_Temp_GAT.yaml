@@ -40,8 +40,8 @@ model:
     lstm_hidden: 512
     lstm_layers: 2
     num_attention_heads: 4
-    gat_dropout: [0.3, 0.2]
-    self_attn_dropout: 0.1
+    gat_dropout: [0.4, 0.3]
+    self_attn_dropout: 0.2
 
     batch_size: 4
     num_workers: 4
@@ -52,16 +52,16 @@ model:
 training:
   use_scheduler: true
   scheduler_type: "cosine_with_warmup"
-  warmup_epochs: 5
-  scheduler_patience: 8
+  warmup_epochs: 25
+  scheduler_patience: 5
   scheduler_factor: 0.5
-  scheduler_min_lr: 1e-7
+  scheduler_min_lr: 1e-8
 
   group_activity:
-    num_epochs: 60
-    learning_rate: 3e-4
-    weight_decay: 0.01  
-    label_smoothing: 0.05  
+    num_epochs: 50
+    learning_rate: 1e-5
+    weight_decay: 1  
+    label_smoothing: 0.1  
     model_name: "RCRG_2R_11C_conc_Temp_GAT_best.pth"
 
     optimizer: "adamW"
