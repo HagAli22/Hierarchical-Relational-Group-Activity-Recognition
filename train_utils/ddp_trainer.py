@@ -283,8 +283,18 @@ class DDPTrainer:
                     self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir, scheduler, scaler)
                     logger.info(f"New best model saved with validation loss: {best_val_loss:.4f}")
                     logger.info(f"Best model saved to: {checkpoint_dir}/{self.config.model_name}")
-                    logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
-                    logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
+                    #logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
+                    #logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
+                
+                # Save checkpoint for last epoch
+                if (epoch+1) == self.config.num_epochs:
+                    best_val_loss = avg_val_loss
+                    #self._save_best_model(model, checkpoint_dir)
+                    self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir, scheduler, scaler)
+                    #logger.info(f"Save checkpoint for last epoch: {self.config.num_epochs}")
+                    #logger.info(f"Best model saved to: {checkpoint_dir}/{self.config.model_name}")
+                    #logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
+                    #logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
             
             if early_stopping and rank == 0 and early_stopping(avg_val_loss):
                 logger.info("Early stopping triggered!")
@@ -406,7 +416,14 @@ class DDPTrainer:
             checkpoint['scheduler_state_dict'] = scheduler.state_dict()
         if scaler:
             checkpoint['scaler_state_dict'] = scaler.state_dict()
-        torch.save(checkpoint, os.path.join(checkpoint_dir, f'checkpoint_epoch_{epoch+1}.pth'))
+        # torch.save(checkpoint, os.path.join(checkpoint_dir, f'checkpoint_epoch_{epoch+1}.pth'))
+        if (epoch+1) == self.config.num_epochs:
+            torch.save(checkpoint, os.path.join(checkpoint_dir, f'checkpoint_to_lastepoch.pth'))
+            logger.info(f"Save checkpoint for last epoch: {self.config.num_epochs}")
+        else:
+            torch.save(checkpoint, os.path.join(checkpoint_dir, f'checkpoint_to_bestmodel.pth'))
+            logger.info(f"Save checkpoint for best model")
+            
     
     def _save_best_model(self, model, checkpoint_dir):
         """Save best model weights."""
@@ -443,6 +460,7 @@ class DDPTrainer:
         
         start_epoch = checkpoint.get('epoch', 0) + 1
         best_val_loss = checkpoint.get('val_loss', float('inf'))
+        best_val_loss = float('inf')
         
         if rank == 0:
             logger.info(f"Resumed from epoch {start_epoch}, val_loss: {best_val_loss:.4f}")
