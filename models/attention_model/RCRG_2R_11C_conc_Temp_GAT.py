@@ -1,174 +1,208 @@
 """
 RCRG-2R-11C-conc-Temp-GAT Model
 ================================
-Temporal relational model with 2 Relational Units and LSTM for temporal modeling.
-Uses PyTorch Geometric MessagePassing for graph-based attention.
+Temporal relational model with 2 Graph Attention layers (2R) and 1 Clique of all 12 players (11C).
+Uses concatenation and LSTM for temporal modeling across 9 frames.
+Includes Multi-Head Self-Attention with Query, Key, Value mechanism.
 """
 
 import torch
 import torch.nn as nn
-import itertools
-
-try:
-    from torch_geometric.nn import MessagePassing
-    from torch_geometric.utils import softmax
-    PYGEOMETRIC_AVAILABLE = True
-except ImportError:
-    PYGEOMETRIC_AVAILABLE = False
-    print("Warning: torch_geometric not available, using fallback implementation")
+import torch.nn.functional as F
+import math
+from models.attention_model.RelationalGATLayer import RelationalGATLayer, clique_adjacency
 
 
-class GraphRelationalAttention(MessagePassing):
+class MultiHeadSelfAttention(nn.Module):
     """
-    Graph-based Relational Attention layer with multi-head attention and FFN.
-    Processes player interactions using pairwise feature attention mechanism.
+    Multi-Head Self-Attention Layer with Q, K, V.
+    
+    Q = X @ W_Q
+    K = X @ W_K  
+    V = X @ W_V
+    Attention = softmax(Q @ K^T / sqrt(d_k)) @ V
     """
-    def __init__(self, in_channels, out_channels, num_heads=4, hidden_size=1024, dropout_rate=0.5):
-        super(GraphRelationalAttention, self).__init__(aggr='add')
+    
+    def __init__(self, embed_dim, num_heads=4, dropout=0.1):
+        super().__init__()
+        assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
         
+        self.embed_dim = embed_dim
         self.num_heads = num_heads
-        self.head_dim = in_channels // num_heads
-        self.scale = self.head_dim ** 0.5
+        self.head_dim = embed_dim // num_heads
+        self.scale = math.sqrt(self.head_dim)
         
-        self.query = nn.Linear(in_channels, in_channels)
-        self.key = nn.Linear(in_channels, in_channels)
-        self.value = nn.Linear(2 * in_channels, in_channels)  # Pairwise features!
+        # Q, K, V projections
+        self.W_q = nn.Linear(embed_dim, embed_dim)
+        self.W_k = nn.Linear(embed_dim, embed_dim)
+        self.W_v = nn.Linear(embed_dim, embed_dim)
         
-        self.ln1 = nn.LayerNorm(in_channels)
-        self.dr1 = nn.Dropout(dropout_rate)
+        # Output projection
+        self.W_o = nn.Linear(embed_dim, embed_dim)
         
-        self.ffn = nn.Sequential(
-            nn.Linear(in_channels, hidden_size),
-            nn.GELU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_size, out_channels),
-        )
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(embed_dim)
         
-        self.ln2 = nn.LayerNorm(out_channels)
-        self.dr2 = nn.Dropout(dropout_rate)
-    
-    def forward(self, x, edge_index):
-        x_att = self.propagate(edge_index, x=x)
-        x_att = x + self.dr1(x_att)
-        x_att = self.ln1(x_att)
+    def forward(self, x, return_attention=False):
+        """
+        Args:
+            x: (B, N, D) - B batches, N tokens/players, D dimensions
+            return_attention: whether to return attention weights
+        Returns:
+            out: (B, N, D)
+            attn_weights: (B, num_heads, N, N) if return_attention
+        """
+        B, N, D = x.shape
         
-        x_ffn = self.ffn(x_att)
-        out = x_att + self.dr2(x_ffn)
-        out = self.ln2(out)
+        # Compute Q, K, V
+        Q = self.W_q(x)  # (B, N, D)
+        K = self.W_k(x)  # (B, N, D)
+        V = self.W_v(x)  # (B, N, D)
+        
+        # Reshape for multi-head: (B, N, num_heads, head_dim) -> (B, num_heads, N, head_dim)
+        Q = Q.view(B, N, self.num_heads, self.head_dim).transpose(1, 2)
+        K = K.view(B, N, self.num_heads, self.head_dim).transpose(1, 2)
+        V = V.view(B, N, self.num_heads, self.head_dim).transpose(1, 2)
+        
+        # Attention scores: (B, num_heads, N, N)
+        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / self.scale
+        attn_weights = F.softmax(attn_scores, dim=-1)
+        attn_weights = self.dropout(attn_weights)
+        
+        # Apply attention to values: (B, num_heads, N, head_dim)
+        attn_output = torch.matmul(attn_weights, V)
+        
+        # Concatenate heads: (B, N, D)
+        attn_output = attn_output.transpose(1, 2).contiguous().view(B, N, D)
+        
+        # Output projection
+        out = self.W_o(attn_output)
+        
+        # Residual connection + layer norm
+        out = self.layer_norm(out + x)
+        
+        if return_attention:
+            return out, attn_weights
         return out
-    
-    def message(self, x_i, x_j, index, ptr, size_i):
-        """
-        x_i: Features of the receiving node
-        x_j: Features of the sending node
-        """
-        batch, edges, _ = x_i.shape
-        
-        query = self.query(x_i).view(batch, edges, self.num_heads, self.head_dim).transpose(1, 2)
-        key = self.key(x_j).view(batch, edges, self.num_heads, self.head_dim).transpose(1, 2)
-        value = self.value(torch.cat([x_i, x_j], dim=-1)).view(batch, edges, self.num_heads, self.head_dim).transpose(1, 2)
-        
-        e_ij = (query * key).sum(dim=-1) / self.scale
-        a_ij = softmax(e_ij, index, ptr, num_nodes=size_i, dim=-1)
-        
-        return (a_ij.unsqueeze(-1) * value).view(batch, edges, self.num_heads * self.head_dim)
-    
-    def update(self, aggr_out):
-        return aggr_out
 
 
 class RCRG_2R_11C_conc_Temp_GAT(nn.Module):
     def __init__(self, person_classifier, num_classes=8, feature_dim=2048):
         super(RCRG_2R_11C_conc_Temp_GAT, self).__init__()
+
+        self.person_feature_extractor = person_classifier.resnet50
+        for param in self.person_feature_extractor.parameters():
+            param.requires_grad = False  # Freeze person feature extractor
+
+        self.gat_layer1 = RelationalGATLayer(in_dim=feature_dim, out_dim=2048, dropout=0.3)
         
-        self.resnet50 = person_classifier.resnet50
-        for param in self.resnet50.parameters():
-            param.requires_grad = False
+        self.self_attn1 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.2)
         
-        self.gra1 = GraphRelationalAttention(
-            in_channels=feature_dim,
-            out_channels=feature_dim,
-            num_heads=4,
-            dropout_rate=0.5
-        )
+        self.gat_layer2 = RelationalGATLayer(in_dim=2048, out_dim=2048, dropout=0.3)
         
-        self.gra2 = GraphRelationalAttention(
-            in_channels=feature_dim,
-            out_channels=feature_dim,
-            num_heads=4,
-            dropout_rate=0.5
-        )
+        self.self_attn2 = MultiHeadSelfAttention(embed_dim=2048, num_heads=4, dropout=0.2)
+
+        self.proj = nn.Linear(2048, 512)
+        self.layer_norm1= nn.LayerNorm(512)
+        self.layer_norm2= nn.LayerNorm(512)
         
-        self.proj_layer = nn.Linear(2048, 512)
-        self.norm_temporal = nn.LayerNorm(512)
-        self.norm_fusion = nn.LayerNorm(512)
-        
-        self.temporal_lstm = nn.LSTM(
-            input_size=2048,
-            hidden_size=512,
-            batch_first=True
-        )
-        
+        # Feature dropout before LSTM
+        self.feature_dropout = nn.Dropout(0.2)
+
+        self.hidden_size = 512
+        self.lstm = nn.LSTM(2048, self.hidden_size, batch_first=True, dropout=0.1)
+
         self.classifier = nn.Sequential(
-            nn.Linear(12 * 512, 256),
+            nn.Dropout(0.3),  # Dropout before first linear
+            nn.Linear(in_features=12*512, out_features=256),
             nn.LayerNorm(256),
             nn.GELU(),
-            nn.Dropout(0.5),
-            nn.Linear(256, num_classes),
+            nn.Dropout(0.3),
+            nn.Linear(in_features=256, out_features=num_classes)
         )
         
-        # Store edge_index as buffer (will be created on first forward)
-        self.register_buffer('edge_index', None)
-    
-    def _get_edge_index(self, num_nodes, device):
-        """Generate fully connected edge index for all players."""
-        if self.edge_index is None or self.edge_index.device != device:
-            edges = [(i, j) for i, j in itertools.permutations(range(num_nodes), 2)]
-            self.edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous().to(device)
-        return self.edge_index
-    
-    def forward(self, x):
-        b, bb, seq, c, h, w = x.shape  # batch, bbox, frames, channels, height, width
+        # Adjacency matrix for all players (1 clique)
+        self.register_buffer('adj', clique_adjacency(K=12, num_cliques=1))
+
+    def forward(self, x, return_attention=False):
+        """
+        Forward pass.
         
-        x = x.view(b * bb * seq, c, h, w)
-        x = self.resnet50(x)  # (b*bb*seq, 2048, 1, 1)
-        x = x.view(b * seq, bb, -1)  # (b*seq, bb, 2048)
+        Args:
+            x: Input tensor (B, 12, 9, C, H, W)
+            return_attention: If True, return attention weights for visualization
+            
+        Returns:
+            out: Class logits (B, num_classes)
+            attention_weights: (optional) Dict with attention weights from each layer
+        """
+        b, num_people, num_frames, c, h, w = x.size()
+        x = x.view(b * num_frames * num_people, c, h, w)  # (B*9*12, C, H, W)
+
+        # Extract person features
+        x = self.person_feature_extractor(x)  # (B*9*12, 2048, 1, 1)
+        x = x.view(b * num_frames, num_people, -1)  # (B*9, 12, 2048)
+
+        # First GAT layer
+        if return_attention:
+            x, gat_attn1 = self.gat_layer1(x, self.adj, return_attention=True)
+        else:
+            x = self.gat_layer1(x, self.adj)  # (B*9, 12, 2048)
         
-        # Get edge index for graph
-        edge_index = self._get_edge_index(bb, x.device)
+        # Self-Attention after first GAT
+        if return_attention:
+            x, self_attn1 = self.self_attn1(x, return_attention=True)
+        else:
+            x = self.self_attn1(x)  # (B*9, 12, 2048)
+
+        # Second GAT layer - uses output from self_attn1
+        if return_attention:
+            x, gat_attn2 = self.gat_layer2(x, self.adj, return_attention=True)
+        else:
+            x = self.gat_layer2(x, self.adj)  # (B*9, 12, 2048)
         
-        # Graph relational attention layers
-        x_gra1 = self.gra1(x, edge_index)  # (b*seq, bb, 2048)
-        x_gra2 = self.gra2(x_gra1, edge_index)  # (b*seq, bb, 2048)
+        # Self-Attention after second GAT
+        if return_attention:
+            x, self_attn2 = self.self_attn2(x, return_attention=True)
+        else:
+            x = self.self_attn2(x)  # (B*9, 12, 2048)
+
+        x = x.view(b, num_frames, num_people, -1)  # (B, 9, 12, 2048)
+        x = x.permute(0, 2, 1, 3)  # (B, 12, 9, 2048)
+        x = x.contiguous().view(b * num_people, num_frames, -1)  # (B*12, 9, 2048)
         
-        # Reshape for LSTM: (b*bb, seq, 2048)
-        x_gra2 = x_gra2.view(b, seq, bb, -1).permute(0, 2, 1, 3).contiguous()
-        x_gra2 = x_gra2.view(b * bb, seq, -1)
+        x = self.feature_dropout(x)  # Apply dropout before LSTM
+
+        lstm_out, _ = self.lstm(x)  # (B*12, 9, 512)
+        lstm_out = self.layer_norm1(lstm_out)  # (B*12, 9, 512)
+
+        x = x[:, -1, :]  # (B*12, 2048)
+        lstm_out = lstm_out[:, -1, :]  # (B*12, 512)
         
-        # LSTM temporal modeling
-        x_temporal, (h, c) = self.temporal_lstm(x_gra2)  # (b*bb, seq, 512)
-        x_temporal = self.norm_temporal(x_temporal)
+        x = self.proj(x)  # (B*12, 512)
+        x = self.layer_norm2(x + lstm_out)  # (B*12, 512)
+
+        x = x.contiguous().view(b, -1)  # (B, 12*512)
+
+        out = self.classifier(x)  # (B, num_classes)
         
-        # Take last timestep
-        x_spatial_last = x_gra2[:, -1, :]  # (b*bb, 2048)
-        x_temporal_last = x_temporal[:, -1, :]  # (b*bb, 512)
-        
-        # Combine with projection
-        x = self.norm_fusion(self.proj_layer(x_spatial_last) + x_temporal_last)  # (b*bb, 512)
-        
-        x = x.contiguous().view(b, -1)  # (b, bb*512)
-        x = self.classifier(x)  # (b, num_classes)
-        
-        return x
+        if return_attention:
+            return out, {
+                'gat_layer1': gat_attn1, 
+                'self_attn1': self_attn1,
+                'gat_layer2': gat_attn2,
+                'self_attn2': self_attn2
+            }
+        return out
 
 
 def collate_group_fn(batch):
     """Collate function to pad bounding boxes to 12 per frame."""
     clips, labels = zip(*batch)
-    
+
     max_bboxes = 12
     padded_clips = []
-    
+
     for clip in clips:
         num_bboxes = clip.size(0)
         if num_bboxes < max_bboxes:
@@ -177,8 +211,8 @@ def collate_group_fn(batch):
             )
             clip = torch.cat((clip, clip_padding), dim=0)
         padded_clips.append(clip)
-    
-    padded_clips = torch.stack(padded_clips)
+
+    padded_clips = torch.stack(padded_clips)  # (B, 12, T, C, H, W)
     labels = torch.tensor(labels, dtype=torch.long)
-    
+
     return padded_clips, labels

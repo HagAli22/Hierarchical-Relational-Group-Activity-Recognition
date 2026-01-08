@@ -52,22 +52,22 @@ model:
 training:
   use_scheduler: true
   scheduler_type: "cosine_with_warmup"
-  warmup_epochs: 25
+  warmup_epochs: 25  # Match friend's slow warmup
   scheduler_patience: 5
   scheduler_factor: 0.5
   scheduler_min_lr: 1e-8
 
   group_activity:
-    num_epochs: 50
-    learning_rate: 1e-5
-    weight_decay: 1  
-    label_smoothing: 0.1  
+    num_epochs: 50  # Match friend's epochs
+    learning_rate: 1e-5  # Target LR after warmup (friend reached 1e-5 at epoch 25)
+    weight_decay: 0.01  # Light regularization
+    label_smoothing: 0.0  # No label smoothing - match friend's lower loss values
     model_name: "RCRG_2R_11C_conc_Temp_GAT_best.pth"
 
     optimizer: "adamW"
 
-    use_early_stopping: false
-    early_stopping_patience: 40
+    use_early_stopping: False  # Disable - let it run full epochs like friend
+    early_stopping_patience: 15
     early_stopping_min_delta: 0.0001
 
     person_classifier_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
