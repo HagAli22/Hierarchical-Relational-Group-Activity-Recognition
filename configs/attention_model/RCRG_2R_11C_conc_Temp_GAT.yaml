@@ -58,22 +58,22 @@ training:
   scheduler_min_lr: 1e-8
 
   group_activity:
-    num_epochs: 60   
-    learning_rate: 1e-5 
-    weight_decay: 0.01  
-    label_smoothing: 0.0
+    num_epochs: 80   
+    learning_rate: 5e-6  # أقل للـ fine-tuning
+    weight_decay: 0.02  # أعلى شوية للـ regularization
+    label_smoothing: 0.1  # يقلل الـ overconfidence
     model_name: "RCRG_2R_11C_conc_Temp_GAT_best.pth"
 
     optimizer: "adamW"
 
-    use_early_stopping: False  
+    use_early_stopping: True  
     early_stopping_patience: 15
     early_stopping_min_delta: 0.0001
 
     person_classifier_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
 
     resume_from_checkpoint: true
-    checkpoint_path: "/kaggle/working/checkpoints_backup/checkpoint_epoch_37.pth"
+    checkpoint_path: "/kaggle/working/results/RCRG_2R_11C_conc_Temp_GAT/RCRG_2R_11C_conc_Temp_GAT_best/20260108_105748/checkpoints/checkpoint_epoch_43.pth"
 
     checkpoint_dir: "checkpoints/RCRG_2R_11C_conc_Temp_GAT"
     save_best_model: true
