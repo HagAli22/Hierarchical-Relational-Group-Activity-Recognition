@@ -280,7 +280,7 @@ class DDPTrainer:
                 if avg_val_loss < best_val_loss:
                     best_val_loss = avg_val_loss
                     self._save_best_model(model, checkpoint_dir)
-                    self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir, scheduler, scaler)
+                    self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir,logger, scheduler, scaler)
                     logger.info(f"New best model saved with validation loss: {best_val_loss:.4f}")
                     logger.info(f"Best model saved to: {checkpoint_dir}/{self.config.model_name}")
                     #logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
@@ -290,7 +290,7 @@ class DDPTrainer:
                 if (epoch+1) == self.config.num_epochs:
                     best_val_loss = avg_val_loss
                     #self._save_best_model(model, checkpoint_dir)
-                    self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir, scheduler, scaler)
+                    self._save_checkpoint(model, optimizer, epoch, avg_val_loss, val_acc, checkpoint_dir,logger, scheduler, scaler)
                     #logger.info(f"Save checkpoint for last epoch: {self.config.num_epochs}")
                     #logger.info(f"Best model saved to: {checkpoint_dir}/{self.config.model_name}")
                     #logger.info(f"Checkpoint saved for epoch {epoch+1} at {checkpoint_dir}/checkpoint_epoch_{epoch+1}.pth")
@@ -403,7 +403,7 @@ class DDPTrainer:
         # Return raw values for DDP aggregation
         return total_loss, correct, total
     
-    def _save_checkpoint(self, model, optimizer, epoch, val_loss, val_acc, checkpoint_dir, scheduler=None, scaler=None):
+    def _save_checkpoint(self, model, optimizer, epoch, val_loss, val_acc, checkpoint_dir,logger, scheduler=None, scaler=None):
         """Save training checkpoint."""
         checkpoint = {
             'epoch': epoch,
