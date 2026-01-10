@@ -26,7 +26,7 @@ IS_KAGGLE = '/kaggle' in os.getcwd() or os.path.exists('/kaggle')
 KAGGLE_OUTPUT = "/kaggle/working" if IS_KAGGLE else "."
 
 NUM_CLASSES = 8
-PERSON_CLASSIFIER_PATH = "/kaggle/working/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
+PERSON_CLASSIFIER_PATH = "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
 
 
 def create_model():
