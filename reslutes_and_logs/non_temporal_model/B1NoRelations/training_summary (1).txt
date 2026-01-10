@@ -1,0 +1,16 @@
+============================================================
+TEST SUMMARY - B1NoRelations
+============================================================
+
+Date: 2025-12-15 14:54:48
+
+Model Configuration:
+  - Model Name: B1NoRelations
+  - Num Classes: 8
+  - Feature Extractor: ResNet50 (Frozen)
+  - Best Model Path: /kaggle/working/results/B1NoRelations/B1NoRelations_best/20251215_103257/checkpoints/B1NoRelations_best.pth
+
+Test Results:
+  - Test Loss: 0.3988
+  - Test Accuracy: 90.06%
+  - Total Test Samples: 12033

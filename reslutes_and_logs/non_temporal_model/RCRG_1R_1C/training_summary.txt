@@ -1,0 +1,16 @@
+============================================================
+TEST SUMMARY - RCRG_1R_1C
+============================================================
+
+Date: 2025-12-18 21:35:39
+
+Model Configuration:
+  - Model Name: RCRG_1R_1C
+  - Num Classes: 8
+  - Feature Extractor: ResNet50 (Frozen)
+  - Best Model Path: /kaggle/working/model/results/RCRG_1R_1C/RCRG_1R_1C_best/20251218_100823/checkpoints/RCRG_1R_1C_best.pth
+
+Test Results:
+  - Test Loss: 0.3811
+  - Test Accuracy: 90.82%
+  - Total Test Samples: 12033

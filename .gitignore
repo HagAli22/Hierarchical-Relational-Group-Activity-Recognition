@@ -12,6 +12,14 @@ venv/
 env/
 .env
 
+#data
+videos_sample/
+volleyball_tracking_annotation/
+volleyball-detections/
+*.mp4
+videos/
+crea*
+
 # IDE
 .vscode/
 .idea/
@@ -24,7 +32,7 @@ env/
 
 # Training outputs (large files - don't upload to GitHub)
 checkpoints/
-reslutes_and_logs/
+saved_best_model/
 *.pth
 *.pt
 *.ckpt
@@ -47,3 +55,7 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Deploy - local files (not for GitHub)
+deploy/create_videos.py
+deploy/videos/

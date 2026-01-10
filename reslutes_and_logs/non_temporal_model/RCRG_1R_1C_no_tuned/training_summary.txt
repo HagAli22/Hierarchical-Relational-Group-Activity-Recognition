@@ -1,0 +1,16 @@
+============================================================
+TEST SUMMARY - RCRG_1R_1C_no_tuned
+============================================================
+
+Date: 2025-12-18 21:02:20
+
+Model Configuration:
+  - Model Name: RCRG_1R_1C_no_tuned
+  - Num Classes: 8
+  - Feature Extractor: ResNet50 (Frozen)
+  - Best Model Path: /kaggle/working/results/RCRG_1R_1C_no_tuned/RCRG_1R_1C_no_tuned_best/20251218_110553/checkpoints/RCRG_1R_1C_no_tuned_best.pth
+
+Test Results:
+  - Test Loss: 0.6794
+  - Test Accuracy: 78.93%
+  - Total Test Samples: 12033

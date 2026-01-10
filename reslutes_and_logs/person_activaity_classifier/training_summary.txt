@@ -1,0 +1,13 @@
+============================================================
+TRAINING SUMMARY - person_classifier_best.pth
+============================================================
+
+Date: 2025-12-14 19:18:29
+
+Model Configuration:
+  - Model Name: person_classifier_best.pth
+  - Num Classes: 9
+
+Final Results:
+  - Validation Loss: 0.9134
+  - Validation Accuracy: 80.95%

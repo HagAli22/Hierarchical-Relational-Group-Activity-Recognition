@@ -1,0 +1,13 @@
+============================================================
+TRAINING SUMMARY - RCRG_3R_421C_conc_best.pth
+============================================================
+
+Date: 2025-12-23 02:11:04
+
+Model Configuration:
+  - Model Name: RCRG_3R_421C_conc_best.pth
+  - Num Classes: 8
+
+Final Results:
+  - Validation Loss: 0.8871
+  - Validation Accuracy: 89.55%

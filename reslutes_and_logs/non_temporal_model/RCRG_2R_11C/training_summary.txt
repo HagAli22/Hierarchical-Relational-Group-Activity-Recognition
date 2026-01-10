@@ -1,0 +1,13 @@
+============================================================
+TRAINING SUMMARY - RCRG_2R_11C_best.pth
+============================================================
+
+Date: 2025-12-19 02:21:31
+
+Model Configuration:
+  - Model Name: RCRG_2R_11C_best.pth
+  - Num Classes: 8
+
+Final Results:
+  - Validation Loss: 0.7470
+  - Validation Accuracy: 90.28%

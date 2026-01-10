@@ -1,0 +1,13 @@
+============================================================
+TRAINING SUMMARY - RCRG_2R_11C_conc_Temporal_best.pth
+============================================================
+
+Date: 2025-12-24 13:04:03
+
+Model Configuration:
+  - Model Name: RCRG_2R_11C_conc_Temporal_best.pth
+  - Num Classes: 8
+
+Final Results:
+  - Validation Loss: 0.3865
+  - Validation Accuracy: 91.02%

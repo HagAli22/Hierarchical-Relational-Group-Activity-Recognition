@@ -59,9 +59,9 @@ training:
 
   group_activity:
     num_epochs: 75
-    learning_rate: 5e-6  # أقل للـ fine-tuning
-    weight_decay: 0.02  # أعلى شوية للـ regularization
-    label_smoothing: 0.1  # يقلل الـ overconfidence
+    learning_rate: 5e-6  
+    weight_decay: 0.02  
+    label_smoothing: 0.1  
     model_name: "RCRG_2R_11C_conc_Temp_GAT_best.pth"
 
     optimizer: "adamW"
