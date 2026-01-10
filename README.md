@@ -47,8 +47,9 @@ This project addresses the challenge of understanding collective behavior from i
 The best model `RCRG_2R_11C_conc_Temp_GAT` (91.85% accuracy) is available on Kaggle:
 
 ```bash
-# Download via Kaggle API
-kaggle datasets download -d mustafa-mohamed/rcrg-2r-11c-conc-temp-gat-v1
+# Download via Kaggle
+https://www.kaggle.com/code/mustafamohamed22/rcrg-2r-11c-conc-temp-gat
+
 ```
 
 ### Quick Start
