@@ -73,7 +73,7 @@ training:
     person_classifier_path: "/kaggle/input/person-classifer/results/person_classifier/person_classifier_best/20251214_140908/checkpoints/person_classifier_best.pth"
 
     resume_from_checkpoint: true
-    checkpoint_path: "/kaggle/working/resumecheck/results/RCRG_2R_11C_conc_Temp_GAT/RCRG_2R_11C_conc_Temp_GAT_best/20260108_224637/checkpoints/checkpoint_to_bestmodel.pth"
+    checkpoint_path: "/kaggle/working/resumecheck/results/RCRG_2R_11C_conc_Temp_GAT/RCRG_2R_11C_conc_Temp_GAT_best/20260108_224637/checkpoints/checkpoint_to_lastepoch.pth"
 
     checkpoint_dir: "checkpoints/RCRG_2R_11C_conc_Temp_GAT"
     save_best_model: true
