@@ -48,24 +48,14 @@ The best model `RCRG_2R_11C_conc_Temp_GAT` (91.85% accuracy) is available on Kag
 
 ```bash
 # Download via Kaggle
-https://www.kaggle.com/code/mustafamohamed22/rcrg-2r-11c-conc-temp-gat
+import kagglehub
 
-```
+path = kagglehub.model_download(
+    "mustafamohamed22/rcrg-2r-11c-conc-temp-gat/pytorch/default"
+)
 
-### Quick Start
+print("Path to model files:", path)
 
-```python
-import torch
-from models.person_classifer import Person_Classifer
-from models.attention_model.RCRG_2R_11C_conc_Temp_GAT import RCRG_2R_11C_conc_Temp_GAT
-
-# Initialize and load model
-person_model = Person_Classifer(num_classes=9)
-model = RCRG_2R_11C_conc_Temp_GAT(person_model, num_classes=8)
-
-checkpoint = torch.load('RCRG_2R_11C_conc_Temp_GAT_best.pth', map_location='cuda')
-model.load_state_dict(checkpoint['model_state_dict'])
-model.eval()
 ```
 
 ### REST API Deployment
